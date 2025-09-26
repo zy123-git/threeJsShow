@@ -22,6 +22,16 @@ const routes: RouteRecordRaw[] = [
     name: 'HTMLModel',
     component: () => import('../views/HTMLModel.vue'),
   },
+  {
+    path: '/html-book',
+    name: 'HTMLBook',
+    component: () => import('../views/HTMLBook.vue'),
+  },
+  {
+    path: '/html-sea',
+    name: 'HTMLSea',
+    component: () => import('../views/HTMLSea.vue'),
+  },
 ];
 
 const router = createRouter({

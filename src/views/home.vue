@@ -21,6 +21,18 @@
         <h3>3D模型</h3>
         <p>Three.js 实现的3D模型展示</p>
       </router-link>
+
+      <router-link to="/html-book" class="nav-card">
+        <div class="card-icon">📚</div>
+        <h3>书页</h3>
+        <p>书页效果，自定义着色器实现</p>
+      </router-link>
+
+      <router-link to="/html-sea" class="nav-card">
+        <div class="card-icon">🌊</div>
+        <h3>海洋</h3>
+        <p>海浪模拟，动态水面效果</p>
+      </router-link>
     </div>
 
     <div class="footer">
