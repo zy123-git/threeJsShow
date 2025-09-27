@@ -45,6 +45,8 @@
      * 相机
      */
      camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
+     camera.lookAt(new THREE.Vector3(0, 0, 0));
+     camera.position.y = -2.5;
      camera.position.z = 1.5; // 设置相机位置
      scene.add(camera);
      
@@ -67,6 +69,10 @@
         uTime: { value: 0 },
         uCeilingColor: { value: new THREE.Color(parameters.ceilingColor) },
         uFloorColor: { value: new THREE.Color(parameters.floorColor) },
+        uWaveMainFrequency: { value: 1.0 },
+        uAltitude: { value: 0.4 },
+        uNoiseAmplitude: { value: 0.05 },
+        uIterationCount: { value: 0.5 },
       },
     });
 

@@ -4,6 +4,10 @@ uniform mat4 projectionMatrix;
 uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform float uTime;
+uniform float uWaveMainFrequency;
+uniform float uAltitude;
+uniform float uNoiseAmplitude;
+uniform float uIterationCount;
 
 attribute vec3 position;
 
@@ -89,9 +93,22 @@ float perlin_noise(vec2 p) {
 
 void main() {
     vec4 transformedPosition =  modelMatrix * vec4(position, 1.0);
-    transformedPosition.z+=sin(transformedPosition.x*4.0+uTime)*0.1+sin(transformedPosition.y*3.0+uTime)*0.2+0.3;
-    transformedPosition.z-=perlin_noise(vec2(transformedPosition.x*20.0+uTime,transformedPosition.y*20.0+uTime))*0.05;
+    transformedPosition.z+=(sin(transformedPosition.x*4.0+uTime*uWaveMainFrequency)+
+        sin(transformedPosition.y*3.0+uTime*uWaveMainFrequency))*uAltitude*0.5+uAltitude;
+    
+    for (float i = 0.0; i < 3.0; i += 1.0) {
+        transformedPosition.z-=abs(
+            perlin_noise(vec2(transformedPosition.x*10.0+uTime,transformedPosition.y*10.0+uTime))*
+            uNoiseAmplitude/pow(2.0, i)
+        );
+    }
+    //柏林噪声增加随机性
+    transformedPosition.z-=abs(
+            perlin_noise(vec2(transformedPosition.x*20.0+uTime,transformedPosition.y*20.0+uTime))*
+            uNoiseAmplitude
+        );
 
     gl_Position = projectionMatrix * viewMatrix * transformedPosition;
-    vRelativeElevation = transformedPosition.z / 0.4;
+
+    vRelativeElevation = transformedPosition.z / uAltitude;
 }
