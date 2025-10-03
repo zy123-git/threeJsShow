@@ -98,15 +98,15 @@ void main() {
     
     for (float i = 0.0; i < 3.0; i += 1.0) {
         transformedPosition.z-=abs(
-            perlin_noise(vec2(transformedPosition.x*10.0+uTime,transformedPosition.y*10.0+uTime))*
+            perlin_noise(
+                vec2(
+                    transformedPosition.x*(10.0-i)+uTime,
+                    transformedPosition.y*(10.0-i)+uTime
+                )
+            )*
             uNoiseAmplitude/pow(2.0, i)
         );
     }
-    //柏林噪声增加随机性
-    transformedPosition.z-=abs(
-            perlin_noise(vec2(transformedPosition.x*20.0+uTime,transformedPosition.y*20.0+uTime))*
-            uNoiseAmplitude
-        );
 
     gl_Position = projectionMatrix * viewMatrix * transformedPosition;
 
