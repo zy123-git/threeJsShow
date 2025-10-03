@@ -6,6 +6,7 @@
     <router-link to="/html-model">3D模型</router-link>
     <router-link to="/html-book">书页</router-link>
     <router-link to="/html-sea">海洋</router-link>
+    <router-link to="/html-forest">森林</router-link>
   </nav>
   <router-view />
 </template>

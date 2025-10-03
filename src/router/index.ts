@@ -32,6 +32,11 @@ const routes: RouteRecordRaw[] = [
     name: 'HTMLSea',
     component: () => import('../views/HTMLSea.vue'),
   },
+  {
+    path: '/html-forest',
+    name: 'HTMLForest',
+    component: () => import('../views/HTMLForest.vue'),
+  },
 ];
 
 const router = createRouter({

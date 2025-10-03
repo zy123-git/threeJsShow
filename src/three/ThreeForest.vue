@@ -1,13 +1,13 @@
 <template>
-  <canvas ref="canvasRef" class="webgl_4"></canvas>
+  <canvas ref="canvasRef" class="webgl_5"></canvas>
 </template>
   
 <script setup>
-  import { onMounted, onBeforeUnmount, ref } from 'vue';
+  import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
   import * as THREE from 'three';
   import * as dat from 'dat.gui';
-  import vertexShader from '@/shader/seaShader/vertex.glsl?raw';
-  import fragmentShader from '@/shader/seaShader/fragment.glsl?raw';
+  import vertexShader from '@/shader/forestShader/vertex.glsl?raw';
+  import fragmentShader from '@/shader/forestShader/fragment.glsl?raw';
   import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 
   
@@ -21,8 +21,8 @@
   
   //通过添加到对象的方式可以不用定义，适合一个对象中各个属性的添加，但变量名尽量简便
   const parameters = {};
-  parameters.ceilingColor = '#9bd8ff';
-  parameters.floorColor = '#186691';
+  parameters.ceilingColor = '#8BC34A';
+  parameters.floorColor = '#2E7D32';
 
   // 在ThreeSea.vue中添加
   // 创建噪声纹理
@@ -73,11 +73,10 @@ function createNoiseTexture(size) {
     /**
      * 相机
      */
-     camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
-     camera.lookAt(new THREE.Vector3(0, 0, 0));
-     camera.position.y = -2.5;
-     camera.position.z = 1.5; // 设置相机位置
-     scene.add(camera);
+    camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
+    camera.position.set(0.0 ,-1.0, 2.5);
+    camera.lookAt(new THREE.Vector3(0, 2, 0));
+    scene.add(camera);
      
     //相机控制
     controls = new OrbitControls(camera, canvas);
@@ -110,7 +109,7 @@ function createNoiseTexture(size) {
 
   
     //几何体
-    const geometry = new THREE.PlaneGeometry(2, 2, 256, 256)
+    const geometry = new THREE.PlaneGeometry(4, 4, 256, 256)
 
     const plane = new THREE.Mesh(geometry, material);
     scene.add(plane);
@@ -166,6 +165,9 @@ function createNoiseTexture(size) {
   
   onMounted(() => {
     initThree();
+    watch(() => camera.position, (newPosition) => {
+      console.log(camera);
+    })
   });
   
   onBeforeUnmount(() => {

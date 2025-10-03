@@ -33,6 +33,12 @@
         <h3>海洋</h3>
         <p>海浪模拟，动态水面效果</p>
       </router-link>
+
+      <router-link to="/html-forest" class="nav-card">
+        <div class="card-icon">🌲</div>
+        <h3>森林</h3>
+        <p>森林效果，动态环境模拟</p>
+      </router-link>
     </div>
 
     <div class="footer">

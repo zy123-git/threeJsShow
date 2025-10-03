@@ -21,17 +21,21 @@ float perlin_noise(vec2 p) {
     return texture2D(uNoiseTexture, p * 0.01).r;
 }
 
+float hill(float position){
+    return 1.0-pow(position, 4.0);
+}
+
 void main() {
     vec4 transformedPosition =  modelMatrix * vec4(position, 1.0);
 
     float altitude=uAltitude+sin(uTime*0.2)*0.1+0.1;
-    float positionX=sin(uTime*0.2)+transformedPosition.x;
-    float positionY=sin(uTime*0.2)+transformedPosition.y;
-    float sizeChangeX=abs(sin(uTime*0.3))*2.8+1.0;
-    float sizeChangeY=abs(sin(uTime*0.3))*1.6+1.0;
+    
+    transformedPosition.z+=abs(sin(transformedPosition.x*3.4)+sin(transformedPosition.y*2.6));
+    transformedPosition.z+=abs(cos(transformedPosition.x*2.3)+sin(transformedPosition.y*3.6));
 
-    transformedPosition.z+=(sin(positionX*sizeChangeX+uTime*uWaveMainFrequency)+
-        sin(positionY*sizeChangeY+uTime*uWaveMainFrequency))*altitude*0.5+altitude;
+    transformedPosition.z+=abs(sin(transformedPosition.x+uTime*0.5))*0.3;
+
+    transformedPosition.z*=0.35;   
     
    // 第一层噪声
     transformedPosition.z-=abs(
@@ -45,11 +49,6 @@ void main() {
         uNoiseAmplitude * 0.5
     );
     
-    // 第三层噪声
-    transformedPosition.z-=abs(
-        perlin_noise(vec2(transformedPosition.x*8.0+uTime, transformedPosition.y*8.0+uTime)) * 
-        uNoiseAmplitude * 0.25
-    );
 
     gl_Position = projectionMatrix * viewMatrix * transformedPosition;
 
