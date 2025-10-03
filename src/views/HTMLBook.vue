@@ -1,9 +1,9 @@
 <template>
-    <ThreeShader />
+    <ThreeBook />
 </template>
   
 <script setup>
-  import ThreeShader from '@/three/ThreeShader.vue';
+  import ThreeBook from '@/three/ThreeBook.vue';
 </script>
   
   

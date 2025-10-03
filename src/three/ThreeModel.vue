@@ -6,12 +6,13 @@
 import { onMounted, onBeforeUnmount } from 'vue';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 let canvas = null
 let scene=null
 let camera=null
 let renderer=null
-let objModel=null
+let threeModel=null
 
 let shotRadius = 2; // 初始半径
 let phi = Math.PI * 0.3; // 初始俯仰角 (90度，看向原点)
@@ -50,15 +51,13 @@ const initThree= ()=> {
   /**
    * 模型
    */
-  const objLoader = new OBJLoader();
-  
-  objLoader.load(
-    '../static/uploads_files_3356110_The_Holy_Bible.obj',
-    (object) => {
-      scene.add(object);
+  threeModel=new GLTFLoader();
+  threeModel.load(
+    'static/old_book_(GLTF)/old_book_(GLTF).gltf',
+    (object) => {     
       object.position.set(0, 0.01, 0)
       console.log(object)
-      objModel=object
+      scene.add(object)
     },
     (xhr) => {
       console.log(xhr)
@@ -85,6 +84,11 @@ const initThree= ()=> {
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
 
+  // 点光源
+  const pointLight = new THREE.PointLight(0xffffff, 1);
+  pointLight.position.set(0, 3, 3);
+  scene.add(pointLight);
+
   /**
    * 相机
    */
@@ -95,7 +99,7 @@ const initThree= ()=> {
   // 相机组
 
   // 渲染器
-  const renderer = new THREE.WebGLRenderer({ canvas });
+  renderer = new THREE.WebGLRenderer({ canvas });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0x000000); // 设置背景颜色为黑色
