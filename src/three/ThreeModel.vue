@@ -7,32 +7,16 @@ import { onMounted, onBeforeUnmount } from 'vue';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
 
 let canvas = null
 let scene=null
 let camera=null
 let renderer=null
 let threeModel=null
-
-let shotRadius = 2; // 初始半径
-let phi = Math.PI * 0.3; // 初始俯仰角 (90度，看向原点)
-let theta = Math.PI * 0; // 初始方位角
-
-// 鼠标拖动控制相机
-let isDragging = false;
-let previousMouseX = 0;
-let previousMouseY = 0;
-
-// 根据滚轮方向调整半径
-const zoomSpeed = 0.25; // 缩放速度
-
-function updateCameraPosition() {
-  // 将球面坐标转换为笛卡尔坐标
-  camera.position.x = shotRadius * Math.sin(phi) * Math.sin(theta);
-  camera.position.y = shotRadius * Math.cos(phi);
-  camera.position.z = shotRadius * Math.sin(phi) * Math.cos(theta);
-  camera.lookAt(0, 0, 0); // 始终看向原点
-};
+let controls=null
 
 const initThree= ()=> {
   //窗口大小信息
@@ -45,27 +29,86 @@ const initThree= ()=> {
    */
   //画布
   canvas = document.querySelector('canvas.webgl_2');
+
   // 场景
   scene = new THREE.Scene();
 
-  /**
-   * 模型
+   /**
+   * 相机
    */
-  threeModel=new GLTFLoader();
-  threeModel.load(
-    'static/old_book_(GLTF)/old_book_(GLTF).gltf',
-    (object) => {     
-      object.position.set(0, 0.01, 0)
-      console.log(object)
-      scene.add(object)
-    },
-    (xhr) => {
-      console.log(xhr)
-    },
-    (error) => {
-      console.log(error)
-    }
-  )
+   camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
+   camera.position.set(0.0 ,0.2, 0.0);
+   scene.add(camera);
+   //相机控制
+   controls = new OrbitControls(camera, canvas);
+   
+   controls.enableDamping = true;
+
+  // 相机组
+
+
+
+  /**
+   * 纹理
+   */
+  // 加载模型的材质文件
+  // threeModel = new GLTFLoader();
+  // threeModel.load(
+  //   'static/car_book/uploads_files_4638778_lowpoly_novle_(GLB).glb',
+  //   (gltf) => {
+  //     const model = gltf.scene;
+  //     model.position.set(0, 0.01, 0)
+      
+  //     // 加载纹理
+  //     const textureLoader = new THREE.TextureLoader();
+      
+  //     // 加载各种纹理
+  //     const baseColorTexture = textureLoader.load('static/car_book/sideHustle_novel_BaseColor.png');
+  //     const normalTexture = textureLoader.load('static/car_book/sideHustle_novel_Normal_GL.png');
+  //     const metallicTexture = textureLoader.load('static/car_book/sideHustle_novel_Metallic.png');
+  //     const roughnessTexture = textureLoader.load('static/car_book/sideHustle_novel_Roughness.png');
+  //     const ambientOcclusionTexture = textureLoader.load('static/carBook/sideHustle_novel_AmbientOcclusion.png');
+      
+  //     baseColorTexture.flipY = false;
+  //     normalTexture.flipY = false;
+  //     metallicTexture.flipY = false;
+  //     roughnessTexture.flipY = false;
+  //     ambientOcclusionTexture.flipY = false;
+
+      
+  //     // 遍历模型，为每个网格应用新材质
+  //     model.traverse((child) => {
+  //       if (child.isMesh) {
+  //         // 创建新的材质
+  //         const material = new THREE.MeshStandardMaterial({
+  //           map: baseColorTexture,
+  //           normalMap: normalTexture,
+  //           metalnessMap: metallicTexture,
+  //           roughnessMap: roughnessTexture,
+  //           aoMap: ambientOcclusionTexture,
+  //           metalness: 0.2,
+  //           roughness: 0.7,
+  //           side: THREE.DoubleSide
+  //         });
+          
+  //         // 检查是否有uv2属性，如果没有则创建一个
+  //         if (!child.geometry.attributes.uv2) {
+  //           child.geometry.setAttribute('uv2', new THREE.BufferAttribute(child.geometry.attributes.uv.array, 2));
+  //         }
+          
+  //         child.material = material;
+  //       }
+  //     });
+      
+  //     scene.add(model);
+  //   },
+  //   // (xhr) => {
+  //   //   console.log(xhr);
+  //   // },
+  //   (error) => {
+  //     console.log(error);
+  //   }
+  // );
 
   /**
    * 地面
@@ -78,6 +121,65 @@ const initThree= ()=> {
   scene.add(floor);
 
   /**
+   * 模型
+   */
+  threeModel = new GLTFLoader();
+  threeModel.load(
+    'static/old_book/old_book_(GLTF).gltf',
+    (gltf) => {
+      const model = gltf.scene;
+      model.position.set(0, 0.01, 0)
+
+      const textureLoader = new THREE.TextureLoader();
+      const baseColorTexture = textureLoader.load('static/old_book/old_book_Old%20old_book_BaseColor.png');
+      const normalTexture = textureLoader.load('static/old_book/old_book_Old%20old_book_Normal_GL.png');
+      const metallicTexture = textureLoader.load('static/old_book/old_book_Old%20old_book_Metallic.png');
+      const roughnessTexture = textureLoader.load('static/old_book/old_book_Old%20old_book_Roughness.png');
+      const ambientOcclusionTexture = textureLoader.load('static/old_book/old_book_Old%20old_book_AmbientOcclusion.png');
+
+      baseColorTexture.flipY = false;
+      normalTexture.flipY = false;
+      metallicTexture.flipY = false;
+      roughnessTexture.flipY = false;
+      ambientOcclusionTexture.flipY = false;
+
+      // 遍历模型，为每个网格应用新材质
+      model.traverse((child) => {
+        if (child.isMesh) {
+          // 创建新的材质
+          const material = new THREE.MeshStandardMaterial({
+            map: baseColorTexture,
+            normalMap: normalTexture,
+            metalnessMap: metallicTexture,
+            roughnessMap: roughnessTexture,
+            aoMap: ambientOcclusionTexture,
+            metalness: 0.2,
+            roughness: 0.7,
+            side: THREE.DoubleSide
+          });
+          
+          // 检查是否有uv2属性，如果没有则创建一个
+          if (!child.geometry.attributes.uv2) {
+            child.geometry.setAttribute('uv2', new THREE.BufferAttribute(child.geometry.attributes.uv.array, 2));
+          }
+          
+          child.material = material;
+        }
+      });
+
+      scene.add(model);
+    },
+    (xhr) => {
+      console.log(xhr);
+    },
+    (error) => {
+      console.log(error);
+    }
+  );
+  
+
+
+  /**
    * 光照
    */
   // 环境光
@@ -85,18 +187,9 @@ const initThree= ()=> {
   scene.add(ambientLight);
 
   // 点光源
-  const pointLight = new THREE.PointLight(0xffffff, 1);
-  pointLight.position.set(0, 3, 3);
+  const pointLight = new THREE.PointLight(0xffffff, 3);
+  pointLight.position.set(0, 1, 0);
   scene.add(pointLight);
-
-  /**
-   * 相机
-   */
-   camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
-   scene.add(camera);
-   updateCameraPosition(); // 初始化相机位置
-
-  // 相机组
 
   // 渲染器
   renderer = new THREE.WebGLRenderer({ canvas });
@@ -120,56 +213,6 @@ const initThree= ()=> {
 
 onMounted(() => {
   initThree();
-
-  // 监听鼠标按下事件
-  canvas.addEventListener('mousedown', (event) => {
-    isDragging = true;
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY;
-  });
-
-  // 监听鼠标抬起事件
-  window.addEventListener('mouseup', () => {
-    isDragging = false;
-  });
-
-  // 监听鼠标移动事件
-  window.addEventListener('mousemove', (event) => {
-    if (!isDragging) return;
-  
-    const deltaX = event.clientX - previousMouseX;
-    const deltaY = event.clientY - previousMouseY;
-  
-    // 根据鼠标拖动距离调整俯仰角和方位角
-    theta -= deltaX * 0.005; // 左右拖动控制方位角
-    phi += deltaY * 0.005; // 上下拖动控制俯仰角
-  
-    // 限制俯仰角范围，避免翻转
-    phi = Math.max(-0.2*Math.PI+0.5, Math.min(0.5*Math.PI - 0.2, phi));
-    theta = Math.max(0.5 - Math.PI, Math.min(Math.PI - 0.5, theta));
-  
-    updateCameraPosition();
-  
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY;
-  });
-
-  // 监听滚轮事件
-  canvas.addEventListener('wheel', (event) => {
-    event.preventDefault(); // 阻止页面滚动
-    if (event.deltaY < 0) {
-      // 向上滚动，半径减小 (镜头推进)
-      shotRadius -= zoomSpeed;
-    } else {
-      // 向下滚动，半径增大 (镜头拉远)
-      shotRadius += zoomSpeed;
-    }
-  
-    // 限制半径范围
-    shotRadius = Math.max(0.25, Math.min(10, shotRadius));
-  
-    updateCameraPosition();
-  });
 });
 
 onBeforeUnmount(() => {
@@ -178,50 +221,6 @@ onBeforeUnmount(() => {
     renderer.dispose();
     renderer.domElement.remove();
   }
-
-  // 移除事件监听器
-  canvas.removeEventListener('mousedown', (event) => {
-    isDragging = true;
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY;
-  });
-  canvas.removeEventListener('mouseup', () => {
-    isDragging = false;
-  });
-  canvas.removeEventListener('mousemove', (event) => {
-    if (!isDragging) return;
-  
-    const deltaX = event.clientX - previousMouseX;
-    const deltaY = event.clientY - previousMouseY;
-  
-    // 根据鼠标拖动距离调整俯仰角和方位角
-    theta -= deltaX * 0.005; // 左右拖动控制方位角
-    phi += deltaY * 0.005; // 上下拖动控制俯仰角
-  
-    // 限制俯仰角范围，避免翻转
-    phi = Math.max(0.5, Math.min(Math.PI - 0.5, phi));
-    theta = Math.max(0.5 - Math.PI, Math.min(Math.PI - 0.5, theta));
-  
-    updateCameraPosition();
-  
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY; 
-  });
-  canvas.removeEventListener('wheel', (event) => {
-    event.preventDefault(); // 阻止页面滚动
-    if (event.deltaY < 0) {
-      // 向上滚动，半径减小 (镜头推进)
-      shotRadius -= zoomSpeed;
-    } else {
-      // 向下滚动，半径增大 (镜头拉远)
-      shotRadius += zoomSpeed;
-    }
-  
-    // 限制半径范围
-    shotRadius = Math.max(2, Math.min(50, shotRadius));
-  
-    updateCameraPosition();
-  });
 
   // 清理场景中的对象
   if (scene) {

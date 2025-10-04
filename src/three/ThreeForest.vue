@@ -66,7 +66,7 @@ function createNoiseTexture(size) {
      * 场景环境设置
      */
     //画布
-    canvas = canvasRef.value;
+    const canvas = document.querySelector('canvas.webgl_5');
     // 场景
     scene = new THREE.Scene();
     

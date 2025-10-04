@@ -1,0 +1,15 @@
+# Blender MTL File: 'Book.blend'
+# Material Count: 1
+
+newmtl Material
+Ns 323.999994
+Ka 0.622727 0.622727 0.622727
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd D:\\Files\\Abrar Files\\Blender\\Book\\book_texture.png
+map_Ns D:\\Files\\Abrar Files\\Blender\\Book\\book_rougness.png
+refl D:\\Files\\Abrar Files\\Blender\\Book\\book_metallic.png
