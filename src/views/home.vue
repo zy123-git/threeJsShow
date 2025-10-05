@@ -39,6 +39,12 @@
         <h3>森林</h3>
         <p>森林效果，动态环境模拟</p>
       </router-link>
+
+      <router-link to="/html-fireworks" class="nav-card">
+        <div class="card-icon">🎆</div>
+        <h3>烟花</h3>
+        <p>烟花效果，动态环境模拟</p>
+      </router-link>
     </div>
 
     <div class="footer">

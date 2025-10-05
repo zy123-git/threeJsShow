@@ -28,6 +28,7 @@ void main() {
 
     //粒子大小
     gl_PointSize = aPointSize;
+    
     //距离衰减
     gl_PointSize *= ( 1.0 / - viewPosition.z );
 

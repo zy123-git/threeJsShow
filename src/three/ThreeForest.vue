@@ -10,8 +10,6 @@
   import fragmentShader from '@/shader/forestShader/fragment.glsl?raw';
   import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 
-  
-  const canvasRef = ref(null);
   let canvas = null;
   let gui = null;
   let renderer = null;

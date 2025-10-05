@@ -37,6 +37,11 @@ const routes: RouteRecordRaw[] = [
     name: 'HTMLForest',
     component: () => import('../views/HTMLForest.vue'),
   },
+  {
+    path: '/html-fireworks',
+    name: 'HTMLFireworks',
+    component: () => import('../views/HTMLFireworks.vue'),
+  },
 ];
 
 const router = createRouter({
