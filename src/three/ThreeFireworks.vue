@@ -32,11 +32,11 @@ const createFireworks=(
     position=new THREE.Vector3(0,0,0),
     texture=textures.icon_1,
     radius=1,
-    color=new THREE.Color('#8affff'),
   )=>{
     const particlePosition = new Float32Array(particleCount * 3);
     const partcleSize = new Float32Array(particleCount);
     const timeMutiplier = new Float32Array(particleCount);
+    const colorArray = new Float32Array(particleCount * 3);
 
     const goldenRatio = (1 + Math.sqrt(5)) / 2;
     const increment = Math.PI * 2 * goldenRatio;
@@ -57,6 +57,12 @@ const createFireworks=(
       partcleSize[i] = Math.random() * 25 + 5;
 
       timeMutiplier[i] = 1.0 + Math.random();
+
+      const color = new THREE.Color();
+      color.setHSL(Math.random(), 1, 0.7);
+      colorArray[i * 3    ] = color.r;
+      colorArray[i * 3 + 1] = color.g;
+      colorArray[i * 3 + 2] = color.b;
     }
 
     const material = new THREE.ShaderMaterial({
@@ -65,7 +71,6 @@ const createFireworks=(
         uniforms: {
           uTexture: new THREE.Uniform(texture),
           uProgress: new THREE.Uniform(0),
-          uColor: new THREE.Uniform(color),                                                 
         },
         blending: THREE.AdditiveBlending,
         depthWrite: false,
@@ -76,6 +81,7 @@ const createFireworks=(
     geometry.setAttribute('position', new THREE.BufferAttribute(particlePosition, 3));
     geometry.setAttribute('aSize', new THREE.BufferAttribute(partcleSize, 1));
     geometry.setAttribute('aTimeMutiplier', new THREE.BufferAttribute(timeMutiplier, 1));
+    geometry.setAttribute('aColor', new THREE.BufferAttribute(colorArray, 3));
     
 
     const fireworks = new THREE.Points(geometry, material);
@@ -89,7 +95,7 @@ const createFireworks=(
 
     gsap.to(material.uniforms.uProgress, {
       value: 1,
-      duration: 3,
+      duration: 5,
       ease: 'linear',
       onComplete: destroy,
     })
@@ -105,7 +111,6 @@ const createRandomFireworks=()=>{
   const texture = textures[Math.floor(Math.random() * textures.length)];
   const radius = Math.random() + 0.5;
   const color = new THREE.Color();
-  color.setHSL(Math.random(), 1, 0.7);
   createFireworks(particleCount, position, texture, radius, color);
 }
 
@@ -120,7 +125,7 @@ const init=()=>{
     const canvas=document.querySelector('.webgl_6');
 
     const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 1000);
-    camera.position.z = 2;
+    camera.position.z = 3;
 
     const controls = new OrbitControls(camera, canvas);
     //使相机的旋转和缩放操作更加流畅自然。
@@ -152,7 +157,7 @@ const init=()=>{
 					rayleigh: 3,
 					mieCoefficient: 0.005,
 					mieDirectionalG: 0.95,
-					elevation: -2.2,
+					elevation: -32.2,
 					azimuth: 180,
 					exposure: renderer.toneMappingExposure
 				};
@@ -202,8 +207,58 @@ const init=()=>{
     tick();
 };
 
+// 存储定时器ID的变量
+let fireworkInterval = null;
+
+// 自动播放烟花的函数
+const startAutoFireworks = () => {
+  // 定义烟花播放规律
+  let interval = 1000; // 初始间隔1秒
+  const minInterval = 100;
+  const maxInterval = 1500;
+  
+  // 避免重复创建定时器
+  if (fireworkInterval !== null) {
+    clearInterval(fireworkInterval);
+  }
+  
+  // 创建新的定时器
+  fireworkInterval = setTimeout(() => {
+    // 随机播放1-3个烟花
+    const fireworkCount = Math.floor(Math.random() * 5) + 1;
+    for (let i = 0; i < fireworkCount; i++) {
+      createRandomFireworks();
+    }
+
+    interval = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval;
+      
+    // 清除当前定时器并设置新的定时器，避免递归调用
+    clearInterval(fireworkInterval);
+    startAutoFireworksWithDelay(interval);
+  }, interval);
+};
+
+// 使用setTimeout替代递归调用，避免调用栈累积
+const startAutoFireworksWithDelay = (delay) => {
+  setTimeout(() => {
+    startAutoFireworks();    
+  }, delay);
+};
+
+// 在组件卸载时清除定时器（只注册一次）
+onBeforeUnmount(() => {
+  if (fireworkInterval !== null) {
+    clearInterval(fireworkInterval);
+    fireworkInterval = null;
+  }
+});
+
 onMounted(() => {
   init();
+  // 延迟1秒后开始自动播放烟花
+  setTimeout(() => {
+    startAutoFireworks();
+  }, 1000);
 });
 
 
