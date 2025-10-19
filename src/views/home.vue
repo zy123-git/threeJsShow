@@ -45,6 +45,12 @@
         <h3>烟花</h3>
         <p>烟花效果，动态环境模拟</p>
       </router-link>
+      
+      <router-link to="/html-classroom" class="nav-card">
+        <div class="card-icon">🏫</div>
+        <h3>教室</h3>
+        <p>3D教室模型展示，可交互查看</p>
+      </router-link>
     </div>
 
     <div class="footer">

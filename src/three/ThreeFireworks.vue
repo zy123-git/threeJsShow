@@ -50,9 +50,9 @@ const createFireworks=(
       const x = Math.cos(theta) * orRadius;
       const z = Math.sin(theta) * orRadius;
 
-      particlePosition[i * 3    ] = x * radius + (Math.random() - 0.5) * radius * 0.25 + position.x;
-      particlePosition[i * 3 + 1] = y * radius + (Math.random() - 0.5) * radius * 0.25 + position.y;
-      particlePosition[i * 3 + 2] = z * radius + (Math.random() - 0.5) * radius * 0.25 + position.z;
+      particlePosition[i * 3    ] = x * radius * 0.8 + (Math.random() - 0.5) * radius * 0.2 + position.x;
+      particlePosition[i * 3 + 1] = y * radius * 0.8 + (Math.random() - 0.5) * radius * 0.2 + position.y;
+      particlePosition[i * 3 + 2] = z * radius * 0.8 + (Math.random() - 0.5) * radius * 0.2 + position.z;
 
       partcleSize[i] = Math.random() * 25 + 5;
 
@@ -109,7 +109,7 @@ const createRandomFireworks=()=>{
     (Math.random() - 0.5) * 0.5,
   );
   const texture = textures[Math.floor(Math.random() * textures.length)];
-  const radius = Math.random() + 0.5;
+  const radius = Math.random() + 1.5;
   const color = new THREE.Color();
   createFireworks(particleCount, position, texture, radius, color);
 }
@@ -225,7 +225,7 @@ const startAutoFireworks = () => {
   // 创建新的定时器
   fireworkInterval = setTimeout(() => {
     // 随机播放1-3个烟花
-    const fireworkCount = Math.floor(Math.random() * 5) + 1;
+    const fireworkCount = Math.floor(Math.random() * 4) + 1;
     for (let i = 0; i < fireworkCount; i++) {
       createRandomFireworks();
     }

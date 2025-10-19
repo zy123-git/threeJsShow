@@ -8,6 +8,7 @@
     <router-link to="/html-sea">海洋</router-link>
     <router-link to="/html-forest">森林</router-link>
     <router-link to="/html-fireworks">烟花</router-link>
+    <router-link to="/html-classroom">教室</router-link>
   </nav>
   <router-view />
 </template>
