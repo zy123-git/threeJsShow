@@ -1,9 +1,13 @@
 <template>
-  <canvas ref="canvasRef" class="webgl_3"></canvas>
+  <div class="three-container">
+    <canvas ref="canvasRef" class="webgl_3"></canvas>
+  </div>
 </template>
   
 <script setup>
   import { onMounted, onBeforeUnmount, ref } from 'vue';
+import { useCanvasSize } from '../utils/ThreeCanvasSize';
+
   import * as THREE from 'three';
   import * as dat from 'dat.gui';
   import vertexShader from '@/shader/bookShader/vertex.glsl?raw';
@@ -29,11 +33,11 @@
   const parameters = {};
   
   const initThree = () => {
-    //窗口大小信息
-    const sizes = {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    };
+    // 使用画布尺寸组合函数
+    const { size, updateSize } = useCanvasSize('.three-container');
+    
+    // 设置容器位置和尺寸
+    updateSize();
   
     /**
      * 场景环境设置
@@ -46,7 +50,7 @@
     /**
      * 相机
      */
-     camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
+     camera = new THREE.PerspectiveCamera(75, size.value.width / size.value.height, 0.1, 100);
      camera.position.z = 1.5; // 设置相机位置
      scene.add(camera);
      
@@ -95,9 +99,29 @@
     
     // 渲染器
     const renderer = new THREE.WebGLRenderer({ canvas });
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(size.value.width, size.value.height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000); // 设置背景颜色为黑色
+    
+    // 处理窗口大小变化
+    const handleResize = () => {
+      updateSize();
+      
+      // 更新相机
+      camera.aspect = size.value.width / size.value.height;
+      camera.updateProjectionMatrix();
+      
+      // 更新渲染器
+      renderer.setSize(size.value.width, size.value.height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    };
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', handleResize);
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', handleResize);
+    });
+
   
   
   
@@ -153,5 +177,24 @@
     }
   });
   </script>
+  
+  <style scoped>
+  /* 主容器样式 */
+  .three-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0; /* 确保在导航栏下方 */
+  }
+  
+  /* Canvas样式 */
+  .webgl_3 {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  </style>
   
   

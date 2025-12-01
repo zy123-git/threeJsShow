@@ -47,6 +47,11 @@ const routes: RouteRecordRaw[] = [
     name: 'HTMLClassroom',
     component: () => import('../views/HTMLClassroom.vue'),
   },
+  {
+    path: '/html-particles',
+    name: 'HTMLParticles',
+    component: () => import('../views/HTMLParticles.vue'),
+  },
 ];
 
 const router = createRouter({

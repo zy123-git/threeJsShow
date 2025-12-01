@@ -1,9 +1,12 @@
 <template>
-  <canvas ref="canvasRef" class="webgl_7"></canvas>
+  <div class="three-container">
+    <canvas ref="canvasRef" class="webgl_7"></canvas>
+  </div>
 </template>
   
 <script setup>
   import { onMounted, onBeforeUnmount, ref } from 'vue';
+import { useCanvasSize } from '../utils/ThreeCanvasSize';
   import { useRouter } from 'vue-router';
   import * as THREE from 'three';
   import * as dat from 'dat.gui';
@@ -33,11 +36,11 @@
   parameters.rotationSpeed = 0.0005;
   
   const initThree = () => {
-    //窗口大小信息
-    const sizes = {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    };
+    // 使用画布尺寸组合函数
+    const { size, updateSize } = useCanvasSize('.three-container');
+    
+    // 设置容器位置和尺寸
+    updateSize();
   
     /**
      * 场景环境设置
@@ -51,7 +54,7 @@
     /**
      * 相机
      */
-     camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 1000);
+     camera = new THREE.PerspectiveCamera(75, size.value.width / size.value.height, 0.1, 1000);
      camera.position.set(0, 2, 5); // 设置相机位置
      scene.add(camera);
      
@@ -61,7 +64,7 @@
 
     // 渲染器
     renderer = new THREE.WebGLRenderer({ canvas });
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(size.value.width, size.value.height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     /**
@@ -197,18 +200,21 @@
     /**
      * 窗口大小调整
      */
-    window.addEventListener('resize', () => {
-      // 更新尺寸
-      sizes.width = window.innerWidth;
-      sizes.height = window.innerHeight;
+    const handleResize = () => {
+      updateSize();
       
       // 更新相机
-      camera.aspect = sizes.width / sizes.height;
+      camera.aspect = size.value.width / size.value.height;
       camera.updateProjectionMatrix();
       
       // 更新渲染器
-      renderer.setSize(sizes.width, sizes.height);
+      renderer.setSize(size.value.width, size.value.height);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    };
+    
+    window.addEventListener('resize', handleResize);
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', handleResize);
     });
 
   
@@ -274,4 +280,23 @@
     }
   });
   </script>
+  
+  <style scoped>
+  /* 主容器样式 */
+  .three-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0; /* 确保在导航栏下方 */
+  }
+  
+  /* Canvas样式 */
+  .webgl_7 {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  </style>
   

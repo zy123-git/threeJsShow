@@ -1,9 +1,12 @@
 <template>
-  <canvas ref="canvasRef" class="webgl_6"></canvas>
+  <div class="three-container">
+    <canvas ref="canvasRef" class="webgl_6"></canvas>
+  </div>
 </template>
 
 <script setup>
 import { onMounted, onBeforeUnmount, watch } from 'vue';
+import { useCanvasSize } from '../utils/ThreeCanvasSize';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -12,7 +15,16 @@ import vertexShader from '@/shader/fireworkShander/vertex.glsl?raw';
 import fragmentShader from '@/shader/fireworkShander/fragment.glsl?raw';
 import { Sky } from 'three/addons/objects/Sky.js';
 
-let scene;
+// 全局变量声明，便于在组件卸载时进行清理
+let scene = null;
+let camera = null;
+let renderer = null;
+let controls = null;
+let canvas = null;
+let gui = null;
+let animationId = null;
+let sky = null;
+let resizeHandler = null;
 
 //加载烟花图案
 const textureLoader = new THREE.TextureLoader();
@@ -115,84 +127,109 @@ const createRandomFireworks=()=>{
 }
 
 const init=()=>{
-    const sizes = {
-      width: window.innerWidth,
-      height: window.innerHeight, 
-    };
+    // 使用画布尺寸组合函数
+    const { size, updateSize } = useCanvasSize('.three-container');
+    
+    // 设置容器位置和尺寸
+    updateSize();
 
     scene = new THREE.Scene();
 
-    const canvas=document.querySelector('.webgl_6');
+    canvas = document.querySelector('.webgl_6');
 
-    const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(75, size.value.width / size.value.height, 0.1, 1000);
     camera.position.z = 3;
 
-    const controls = new OrbitControls(camera, canvas);
+    controls = new OrbitControls(camera, canvas);
     //使相机的旋转和缩放操作更加流畅自然。
     controls.enableDamping = true;
 
-    const renderer = new THREE.WebGLRenderer({
+    renderer = new THREE.WebGLRenderer({
       canvas: canvas,
     });
-    renderer.setSize(sizes.width, sizes.height);
+    renderer.setSize(size.value.width, size.value.height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // 处理窗口大小变化
+    resizeHandler = () => {
+      updateSize();
+      
+      // 更新相机
+      camera.aspect = size.value.width / size.value.height;
+      camera.updateProjectionMatrix();
+      
+      // 更新渲染器
+      renderer.setSize(size.value.width, size.value.height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    };
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', resizeHandler);
 
     createFireworks();
 
-    addEventListener('click',()=>{
+    // 点击事件处理函数
+    const handleClick = () => {
       createRandomFireworks();
-    })
+    };
+    window.addEventListener('click', handleClick);
+    
+    // 在组件卸载时移除点击事件
+    onBeforeUnmount(() => {
+      window.removeEventListener('click', handleClick);
+    });
 
     //天空部分
-    	// Add Sky
-				const sky = new Sky();
-				sky.scale.setScalar( 450000 );
-				scene.add( sky );
+    // Add Sky
+    sky = new Sky();
+    sky.scale.setScalar( 450000 );
+    scene.add( sky );
 
-				const sun = new THREE.Vector3();
+    const sun = new THREE.Vector3();
 
-				/// GUI
+    /// GUI
 
-				const effectController = {
-					turbidity: 10,
-					rayleigh: 3,
-					mieCoefficient: 0.005,
-					mieDirectionalG: 0.95,
-					elevation: -32.2,
-					azimuth: 180,
-					exposure: renderer.toneMappingExposure
-				};
+    const effectController = {
+      turbidity: 10,
+      rayleigh: 3,
+      mieCoefficient: 0.005,
+      mieDirectionalG: 0.95,
+      elevation: -32.2,
+      azimuth: 180,
+      exposure: renderer.toneMappingExposure
+    };
 
-				function guiChanged() {
+    function guiChanged() {
 
-					const uniforms = sky.material.uniforms;
-					uniforms[ 'turbidity' ].value = effectController.turbidity;
-					uniforms[ 'rayleigh' ].value = effectController.rayleigh;
-					uniforms[ 'mieCoefficient' ].value = effectController.mieCoefficient;
-					uniforms[ 'mieDirectionalG' ].value = effectController.mieDirectionalG;
+      const uniforms = sky.material.uniforms;
+      uniforms[ 'turbidity' ].value = effectController.turbidity;
+      uniforms[ 'rayleigh' ].value = effectController.rayleigh;
+      uniforms[ 'mieCoefficient' ].value = effectController.mieCoefficient;
+      uniforms[ 'mieDirectionalG' ].value = effectController.mieDirectionalG;
 
-					const phi = THREE.MathUtils.degToRad( 90 - effectController.elevation );
-					const theta = THREE.MathUtils.degToRad( effectController.azimuth );
+      const phi = THREE.MathUtils.degToRad( 90 - effectController.elevation );
+      const theta = THREE.MathUtils.degToRad( effectController.azimuth );
 
-					sun.setFromSphericalCoords( 1, phi, theta );
+      sun.setFromSphericalCoords( 1, phi, theta );
 
-					uniforms[ 'sunPosition' ].value.copy( sun );
+      uniforms[ 'sunPosition' ].value.copy( sun );
 
-					renderer.toneMappingExposure = effectController.exposure;
-					renderer.render( scene, camera );
+      renderer.toneMappingExposure = effectController.exposure;
+      renderer.render( scene, camera );
 
-				}
+    }
 
-				const gui = new GUI();
+    gui = new GUI();
 
-				gui.add( effectController, 'turbidity', 0.0, 20.0, 0.1 ).onChange( guiChanged );
-				gui.add( effectController, 'rayleigh', 0.0, 4, 0.001 ).onChange( guiChanged );
-				gui.add( effectController, 'mieCoefficient', 0.0, 0.1, 0.001 ).onChange( guiChanged );
-				gui.add( effectController, 'mieDirectionalG', 0.0, 1, 0.001 ).onChange( guiChanged );
-				gui.add( effectController, 'elevation', 0, 90, 0.1 ).onChange( guiChanged );
-				gui.add( effectController, 'azimuth', - 180, 180, 0.1 ).onChange( guiChanged );
-				gui.add( effectController, 'exposure', 0, 1, 0.0001 ).onChange( guiChanged );
+    gui.add( effectController, 'turbidity', 0.0, 20.0, 0.1 ).onChange( guiChanged );
+    gui.add( effectController, 'rayleigh', 0.0, 4, 0.001 ).onChange( guiChanged );
+    gui.add( effectController, 'mieCoefficient', 0.0, 0.1, 0.001 ).onChange( guiChanged );
+    gui.add( effectController, 'mieDirectionalG', 0.0, 1, 0.001 ).onChange( guiChanged );
+    gui.add( effectController, 'elevation', 0, 90, 0.1 ).onChange( guiChanged );
+    gui.add( effectController, 'azimuth', - 180, 180, 0.1 ).onChange( guiChanged );
+    gui.add( effectController, 'exposure', 0, 1, 0.0001 ).onChange( guiChanged );
 
-				guiChanged();
+    guiChanged();
 
 
     const clock = new THREE.Clock();
@@ -202,7 +239,7 @@ const init=()=>{
       // 渲染场景
       renderer.render(scene, camera);
       // 递归调用 tick 函数
-      requestAnimationFrame(tick);
+      animationId = requestAnimationFrame(tick);
     };
     tick();
 };
@@ -245,11 +282,136 @@ const startAutoFireworksWithDelay = (delay) => {
   }, delay);
 };
 
-// 在组件卸载时清除定时器（只注册一次）
+// 在组件卸载时进行完整的资源清理
 onBeforeUnmount(() => {
+  // 1. 清除所有定时器和setTimeout
   if (fireworkInterval !== null) {
+    clearTimeout(fireworkInterval);
     clearInterval(fireworkInterval);
     fireworkInterval = null;
+  }
+  
+  // 2. 取消动画帧请求
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  
+  // 3. 移除事件监听器
+  if (resizeHandler !== null) {
+    window.removeEventListener('resize', resizeHandler);
+    resizeHandler = null;
+  }
+  
+  // 4. 销毁GUI
+  if (gui !== null) {
+    gui.destroy();
+    gui = null;
+  }
+  
+  // 5. 清理Three.js资源 - 更安全的方式
+  try {
+    // 不要使用traverse，而是直接清空场景中的对象引用
+    if (scene && scene.children && Array.isArray(scene.children)) {
+      // 直接清空子对象数组，避免在遍历时修改集合
+      const children = [...scene.children];
+      children.forEach((child) => {
+        try {
+          // 单独清理几何体和材质
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(material => material.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+          // 移除子对象
+          if (scene && scene.remove) scene.remove(child);
+        } catch (err) {
+          // 忽略单个对象清理的错误
+          console.warn('Error disposing child object:', err);
+        }
+      });
+    }
+    // 直接设置scene为null
+    scene = null;
+  } catch (err) {
+    console.warn('Error during scene cleanup:', err);
+    // 确保scene被重置为null
+    scene = null;
+  }
+  
+  // 6. 清理相机控制
+  try {
+    if (controls && typeof controls.dispose === 'function') {
+      controls.dispose();
+    }
+    controls = null;
+  } catch (err) {
+    console.warn('Error disposing controls:', err);
+    controls = null;
+  }
+  
+  // 7. 清理纹理
+  try {
+    if (Array.isArray(textures)) {
+      textures.forEach(texture => {
+        try {
+          if (texture && typeof texture.dispose === 'function') {
+            texture.dispose();
+          }
+        } catch (err) {
+          console.warn('Error disposing texture:', err);
+        }
+      });
+      // 清空数组引用
+      textures = [];
+    }
+  } catch (err) {
+    console.warn('Error during textures cleanup:', err);
+  }
+  
+  // 8. 释放WebGL渲染器和上下文
+  try {
+    if (renderer && typeof renderer.dispose === 'function') {
+      // 停止渲染器
+      renderer.dispose();
+      
+      // 尝试释放WebGL上下文
+      try {
+        if (renderer.getContext) {
+          const gl = renderer.getContext();
+          if (gl && gl.getExtension) {
+            const extension = gl.getExtension('WEBGL_lose_context');
+            if (extension && typeof extension.loseContext === 'function') {
+              extension.loseContext();
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error releasing WebGL context:', err);
+      }
+    }
+    // 注意：不再手动从DOM中移除canvas元素，让Vue自动处理DOM清理
+    renderer = null;
+  } catch (err) {
+    console.warn('Error disposing renderer:', err);
+    renderer = null;
+  }
+  
+  // 9. 重置其他引用
+  camera = null;
+  canvas = null;
+  sky = null;
+  
+  // 10. 清除GSAP动画
+  try {
+    if (typeof gsap !== 'undefined' && gsap.killTweensOf) {
+      gsap.killTweensOf('*');
+    }
+  } catch (err) {
+    console.warn('Error clearing GSAP animations:', err);
   }
 });
 
@@ -261,5 +423,23 @@ onMounted(() => {
   }, 1000);
 });
 
-
 </script>
+
+<style scoped>
+/* 主容器样式 */
+.three-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0; /* 确保在导航栏下方 */
+}
+
+/* Canvas样式 */
+.webgl_6 {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+</style>
