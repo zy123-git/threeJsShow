@@ -1,0 +1,11 @@
+/* Three.js 容器全局样式 */
+.three-container {
+  position: fixed;
+  top: 55px;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0; /* 确保在导航栏下方 */
+  /* 通过JS动态计算顶部偏移量，这里设置一个默认值 */
+}
+

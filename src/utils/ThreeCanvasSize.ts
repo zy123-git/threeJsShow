@@ -1,4 +1,5 @@
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { useThreeStore } from '@/store/modules/three';
 
 // 定义尺寸接口
 export interface CanvasSize {
@@ -16,14 +17,9 @@ export const calculateAvailableSize = (): CanvasSize => {
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
   
-  // 获取顶部导航栏高度（这里假设导航栏是body的第一个子元素，可根据实际情况调整）
-  const navbarElements = document.querySelectorAll('nav, header');
-  let navbarHeight = 0;
-  
-  if (navbarElements.length > 0) {
-    // 使用第一个导航栏元素的高度
-    navbarHeight = navbarElements[0].getBoundingClientRect().height;
-  }
+  // 从Pinia store获取导航栏高度
+  const threeStore = useThreeStore();
+  const navbarHeight = threeStore.navbarHeight;
   
   // 计算可用高度（视口高度减去导航栏高度）
   const availableHeight = viewportHeight - navbarHeight;
@@ -43,7 +39,8 @@ export const calculateAvailableSize = (): CanvasSize => {
 export const setContainerPosition = (containerSelector: string, navbarHeight: number): void => {
   const container = document.querySelector(containerSelector);
   if (container) {
-    (container as HTMLElement).style.top = `${navbarHeight}px`;
+    // (container as HTMLElement).style.top = `${navbarHeight}px`;
+    (container as HTMLElement).style.top = '100px';
     (container as HTMLElement).style.height = `${window.innerHeight - navbarHeight}px`;
   }
 };
@@ -55,13 +52,13 @@ export const setContainerPosition = (containerSelector: string, navbarHeight: nu
  */
 export const useCanvasSize = (containerSelector: string = '.three-container') => {
   // 响应式尺寸状态
-  const size = ref<CanvasSize>(calculateAvailableSize());
+  const sizes = ref<CanvasSize>(calculateAvailableSize());
   
   // 更新尺寸的方法
   const updateSize = () => {
-    size.value = calculateAvailableSize();
+    sizes.value = calculateAvailableSize();
     // 更新容器位置
-    setContainerPosition(containerSelector, size.value.navbarHeight);
+    // setContainerPosition(containerSelector, size.value.navbarHeight);
   };
   
   // 监听窗口大小变化
@@ -76,7 +73,7 @@ export const useCanvasSize = (containerSelector: string = '.three-container') =>
   });
   
   return {
-    size,
+    sizes,
     updateSize,
     calculateAvailableSize,
     setContainerPosition

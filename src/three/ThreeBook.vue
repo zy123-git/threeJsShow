@@ -12,7 +12,7 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
   import * as dat from 'dat.gui';
   import vertexShader from '@/shader/bookShader/vertex.glsl?raw';
   import fragmentShader from '@/shader/bookShader/fragment.glsl?raw';
-  import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
   
   const canvasRef = ref(null);
@@ -22,6 +22,10 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
   let scene = null;
   let camera = null;
   let controls = null;
+// 自转圆环
+let rotatingRing = null;
+// 控制圆环在世界中的平移的父级组（圆环自己保持在组的局部原点，用于“纯自转”）
+let ringGroup = null;
   
   /**
    * 调试
@@ -46,12 +50,23 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
     canvas = canvasRef.value;
     // 场景
     scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+
+    // 坐标轴辅助器（长度为 1，可根据需要调大）
+    const axesHelper = new THREE.AxesHelper(1);
+    scene.add(axesHelper);
     
     /**
-     * 相机
+     * 相机（正交相机）
      */
-     camera = new THREE.PerspectiveCamera(75, size.value.width / size.value.height, 0.1, 100);
-     camera.position.z = 1.5; // 设置相机位置
+    const aspect = size.value.width / size.value.height || 1;
+    const frustumHeight = 2; // 可视高度（世界坐标单位），根据需要调节“远近感”
+    const halfH = frustumHeight / 2;
+    const halfW = halfH * aspect;
+
+    camera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, 100);
+    camera.position.set(0, 0, 5); // 从 z 轴正方向看向原点
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
      scene.add(camera);
      
     //相机控制
@@ -65,29 +80,46 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
     //纹理
 
     //材质
-    const material = new THREE.RawShaderMaterial({
-      vertexShader: vertexShader,
-      fragmentShader: fragmentShader,
-      side: THREE.DoubleSide,
-      uniforms: {
-        uTime: { value: 0 },
-      },
-    });
+    // const material = new THREE.RawShaderMaterial({
+    //   vertexShader: vertexShader,
+    //   fragmentShader: fragmentShader,
+    //   side: THREE.DoubleSide,
+    //   uniforms: {
+    //     uTime: { value: 0 },
+    //   },
+    // });
 
   
     //几何体
-    const geometry = new THREE.PlaneGeometry(1, 1, 128, 128)
-
-    const plane = new THREE.Mesh(geometry, material);
-    
-    // 创建一个父对象作为旋转轴
-    const rotationParent = new THREE.Object3D();
-    scene.add(rotationParent);
+    const cube = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    const cubeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00ffff,
+      metalness: 0.5,
+      roughness: 0.25,
+      emissive: 0x111111,
+    });
+    const cubeMesh = new THREE.Mesh(cube, cubeMaterial);
+    // scene.add(cubeMesh);
     
     // 将平面添加到父对象，并调整位置使得一条边对齐父对象原点
     // 这里我们选择绕X轴正方向的边旋转，所以将平面向左移动0.5单位
-    plane.position.x = 0.5;
-    rotationParent.add(plane);
+    // rotationParent.add(plane);
+
+    // 创建一个自转的圆环
+    const ringGeometry = new THREE.TorusGeometry(0.35, 0.001, 32, 64);
+    const ringMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      metalness: 0.5,
+      roughness: 0.25,
+      emissive: 0x111111,
+    });
+    rotatingRing = new THREE.Mesh(ringGeometry, ringMaterial);
+
+    // 使用父级组控制圆环在世界中的位置，圆环本身保持在组的局部原点，保证自转中心就是几何中心
+    ringGroup = new THREE.Object3D();
+    ringGroup.position.set(0, 0, 0); // 放在书页前方一点，避免遮挡太多
+    ringGroup.add(rotatingRing);
+    scene.add(ringGroup);
   
     /**
      * 光线
@@ -107,8 +139,16 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
     const handleResize = () => {
       updateSize();
       
-      // 更新相机
-      camera.aspect = size.value.width / size.value.height;
+      // 更新正交相机的截锥体参数，保持内容不拉伸
+      const aspect = size.value.width / size.value.height || 1;
+      const frustumHeight = 2;
+      const halfH = frustumHeight / 2;
+      const halfW = halfH * aspect;
+
+      camera.left = -halfW;
+      camera.right = halfW;
+      camera.top = halfH;
+      camera.bottom = -halfH;
       camera.updateProjectionMatrix();
       
       // 更新渲染器
@@ -131,16 +171,17 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
     const clock = new THREE.Clock();
     const tick = () => {
       const elapsedTime = clock.getElapsedTime();
-      //物体动画
-      // 旋转父对象而不是直接旋转平面，这样就可以绕着边旋转
-      rotationParent.rotation.y = elapsedTime;
+      // 书页绕边缘旋转
+      cubeMesh.rotation.y = elapsedTime;
       
+      // 圆环自转：严格绕自身 Z 轴（使用绝对角度，避免数值误差累积）
+      if (rotatingRing) {
+        rotatingRing.rotation.set(0, elapsedTime, 0);
+      }
       
       // 渲染
-      //这是整个流程的最后一步，在帧更新中渲染即可，
       renderer.render(scene, camera);
   
-      // 继续调用 tick 函数
       requestAnimationFrame(tick);
     };
   
@@ -179,16 +220,6 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
   </script>
   
   <style scoped>
-  /* 主容器样式 */
-  .three-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 0; /* 确保在导航栏下方 */
-  }
-  
   /* Canvas样式 */
   .webgl_3 {
     display: block;
@@ -196,5 +227,4 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
     height: 100%;
   }
   </style>
-  
   

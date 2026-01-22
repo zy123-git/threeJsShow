@@ -57,6 +57,12 @@
         <h3>粒子特效</h3>
         <p>粒子特效展示，动态环境模拟</p>
       </router-link>
+      
+      <router-link to="/html-flow-particles" class="nav-card">
+        <div class="card-icon">✨</div>
+        <h3>流动粒子特效</h3>
+        <p>流动粒子特效展示，动态环境模拟</p>
+      </router-link>
     </div>
 
     <div class="footer">
@@ -103,7 +109,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
-  max-width: 1000px;
+  max-width: 1500px;
   width: 100%;
   margin-bottom: 3rem;
 }

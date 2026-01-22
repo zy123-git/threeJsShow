@@ -52,6 +52,11 @@ const routes: RouteRecordRaw[] = [
     name: 'HTMLParticles',
     component: () => import('../views/HTMLParticles.vue'),
   },
+  {
+    path: '/html-flow-particles',
+    name: 'HTMLFlowParticles',
+    component: () => import('../views/HTMLFlowParticles.vue'),
+  },
 ];
 
 const router = createRouter({

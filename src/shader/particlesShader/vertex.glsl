@@ -15,11 +15,11 @@ void main() {
     float pictureIntensity = texture(uPictureTexture,uv).r;
 
     //增加粒子大小，并使用较大的系数使粒子更容易可见
-    gl_PointSize = 0.25 * uResolution.y * pictureIntensity;
+    gl_PointSize = 0.1 * uResolution.y * pictureIntensity;
     
     //距离衰减
     gl_PointSize *= ( 1.0 / - viewPosition.z );
 
     // 传递颜色到片段着色器
-    vColor = vec3(pow(pictureIntensity,2.0));
+    vColor = vec3(pow(pictureIntensity,1.5));
 }

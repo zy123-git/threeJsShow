@@ -1,0 +1,22 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- 定义径向渐变：从中心白色(255,255,255)到边缘黑色(0,0,0)的灰度渐变 -->
+  <defs>
+    <radialGradient id="haloGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <!-- 中心：完全白色 -->
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+      <!-- 20%半径处：亮灰色 -->
+      <stop offset="20%" stop-color="#cccccc" stop-opacity="0.8"/>
+      <!-- 40%半径处：中灰色 -->
+      <stop offset="40%" stop-color="#888888" stop-opacity="0.6"/>
+      <!-- 60%半径处：暗灰色 -->
+      <stop offset="60%" stop-color="#444444" stop-opacity="0.4"/>
+      <!-- 80%半径处：极暗灰色 -->
+      <stop offset="80%" stop-color="#222222" stop-opacity="0.2"/>
+      <!-- 边缘：完全透明的黑色 -->
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 绘制一个圆形，应用径向渐变作为填充 -->
+  <circle cx="128" cy="128" r="128" fill="url(#haloGradient)"/>
+</svg>

@@ -24,30 +24,82 @@ let particleMaterial: THREE.ShaderMaterial | null = null;
 let particles: THREE.Points | null = null;
 let particleCount = 10000;
 
-// 使用画布尺寸组合函数
-const { size, updateSize } = useCanvasSize('.three-container');
+  // 使用画布尺寸组合函数
+  const { sizes, updateSize } = useCanvasSize('.canvas_8');
 
 // 初始化Three.js场景
 const initThreeScene = () => {
-
-  canvas = document.querySelector('.canvas_8')!;
-  // 使用响应式尺寸
-  const { width, height } = size.value;
+  canvas = document.querySelector('.canvas_8')
   
   // 创建场景
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
   
   // 创建相机
-  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 1000);
   camera.position.z = 28; // 调整相机位置以适应50*50小间距粒子矩阵
   
   // 创建渲染器
   renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
-  renderer.setSize(width, height, false); // false参数表示不更新DOM尺寸
+  renderer.setClearColor('#181818');
+  renderer.setSize(sizes.value.width, sizes.value.height, false); // false参数表示不更新DOM尺寸
   renderer.setPixelRatio(window.devicePixelRatio);
+
+  const displacement = { 
+    canvas: null, 
+    context: null, 
+    glowImage: null,
+    interactivePlane: null,
+    raycaster: null,
+    screenCursor: null,
+    canvasCursor: null,
+  };
+
+  //2D 画布
+  displacement.canvas = document.createElement('canvas');
+  displacement.canvas.width = 128;
+  displacement.canvas.height = 128;
+  // place the debug canvas inside the three container so it aligns with the 3D canvas
+  // use absolute positioning relative to the container instead of fixed to body
+  displacement.canvas.style.position = 'absolute';
+  displacement.canvas.style.top = '0';
+  displacement.canvas.style.left = '0';
+  displacement.canvas.style.width = '512px';
+  displacement.canvas.style.height = '512px';
+  displacement.canvas.style.zIndex = '10';
+  displacement.canvas.style.pointerEvents = 'none'; // allow pointer events to pass through
+  const threeContainerEl = document.querySelector('.three-container');
+  if (threeContainerEl) {
+    threeContainerEl.appendChild(displacement.canvas);
+  } else {
+    // fallback to body if container not found
+    document.body.appendChild(displacement.canvas);
+  }
   
-  
+  displacement.context = displacement.canvas.getContext('2d')!
+  displacement.context.fillRect(0, 0, displacement.canvas.width, displacement.canvas.height)
+
+  displacement.glowImage = new Image()
+  displacement.glowImage.src = '/png/glow.svg'
+
+  //投射器
+  displacement.raycaster = new THREE.Raycaster()
+
+  displacement.screenCursor = new THREE.Vector2(9999,9999)
+  displacement.canvasCursor = new THREE.Vector2(9999,9999)
+
+  window.addEventListener('pointermove',(event) =>
+  {
+    displacement.screenCursor.x = (event.clientX / sizes.value.width) * 2 - 1
+    displacement.screenCursor.y = -((event.clientY - sizes.value.navbarHeight) / sizes.value.height) * 2 + 1
+  })
+
+  displacement.interactivePlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(40,40),
+    new THREE.MeshBasicMaterial({color:'red'})
+  );
+  scene.add(displacement.interactivePlane);
+
   // 创建粒子系统
   createParticleSystem();
   
@@ -59,13 +111,42 @@ const initThreeScene = () => {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
   directionalLight.position.set(1, 1, 1);
   scene.add(directionalLight);
+
+  const tick = () => {
+
+    displacement.raycaster.setFromCamera(displacement.screenCursor, camera)
+    const intersections = displacement.raycaster.intersectObject(displacement.interactivePlane)
+
+    if(intersections.length){
+      const uv = intersections[0].uv
+
+      displacement.canvasCursor.x = uv.x * displacement.canvas.width
+      displacement.canvasCursor.y = (1-uv.y) * displacement.canvas.height
+
+      console.log("displacement.canvasCursor:",displacement.canvasCursor)
+    }
+
+    const glowSize = displacement.canvas.width * 0.25;
+    displacement.context.globalCompositeOperation = 'lightn'
+    displacement.context.drawImage(
+      displacement.glowImage,
+      displacement.canvasCursor.x - glowSize * 0.5,
+      displacement.canvasCursor.y - glowSize * 0.5,
+      glowSize,
+      glowSize
+    )
+
+    renderer.render(scene, camera);
+    window.requestAnimationFrame(tick);
+  }
+  tick()
 };
 
 // 创建粒子系统
 const createParticleSystem = () => {
   if (!scene) return;
 
-  const particlesGeometry = new THREE.PlaneGeometry(40, 40, 128, 128);
+  const particlesGeometry = new THREE.PlaneGeometry(40, 40, 256, 256);
 
   const textureLoader = new THREE.TextureLoader();
 
@@ -75,25 +156,15 @@ const createParticleSystem = () => {
     depthTest: false,
     blending: THREE.AdditiveBlending,
     uniforms: {
-      
-      uResolution: new THREE.Uniform(new THREE.Vector2(size.value.width * window.devicePixelRatio, 
-      size.value.height * window.devicePixelRatio)),
-      uPictureTexture: new THREE.Uniform(textureLoader.load('/png/carrier.png')),
+      uResolution: new THREE.Uniform(new THREE.Vector2(sizes.value.width * window.devicePixelRatio, 
+      sizes.value.height * window.devicePixelRatio)),
+      uPictureTexture: new THREE.Uniform(textureLoader.load('/png/dragon.png')),
     },
   });
 
   const particles = new THREE.Points(particlesGeometry, particlesMaterial);
   
   scene.add(particles);
-};
-
-// 动画循环
-const animate = () => {
-  animationId = requestAnimationFrame(animate);
-  
-  if (renderer && scene && camera) {
-    renderer.render(scene, camera);
-  }
 };
 
 // 处理窗口大小变化
@@ -105,15 +176,15 @@ const handleResize = () => {
   
   // 更新canvas元素尺寸
   if (canvas) {
-    canvas.style.width = `${size.value.width}px`;
-    canvas.style.height = `${size.value.height}px`;
+    canvas.style.width = `${sizes.value.width}px`;
+    canvas.style.height = `${sizes.value.height}px`;
   }
   
   // 更新相机和渲染器
-  camera.aspect = size.value.width / size.value.height;
+  camera.aspect = sizes.value.width / sizes.value.height;
   camera.updateProjectionMatrix();
   
-  renderer.setSize(size.value.width, size.value.height, false); // false参数表示不更新DOM尺寸
+  renderer.setSize(sizes.value.width, sizes.value.height, false); // false参数表示不更新DOM尺寸
 };
 
 // 组件挂载时初始化
@@ -123,7 +194,6 @@ onMounted(async () => {
   
   // 初始化Three.js场景
   initThreeScene();
-  animate();
   
   // 监听窗口大小变化
   // 注意：useCanvasSize已经处理了resize事件，但我们保留这个以便于可能的额外处理
@@ -132,12 +202,7 @@ onMounted(async () => {
 
 // 组件卸载时清理资源
 onUnmounted(() => {
-  // 停止动画循环
-  if (animationId !== null) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-  
+
   // 移除事件监听
   window.removeEventListener('resize', handleResize);
   
@@ -177,17 +242,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 主容器样式 */
-.three-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0; /* 确保在导航栏下方 */
-  /* 通过JS动态计算顶部偏移量，这里设置一个默认值 */
-}
-
 /* Canvas样式 */
 .canvas_8 {
   display: block;

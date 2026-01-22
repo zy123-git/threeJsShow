@@ -9,7 +9,8 @@
     <router-link to="/html-forest">森林</router-link>
     <router-link to="/html-fireworks">烟花</router-link>
     <router-link to="/html-classroom">教室</router-link>
-    <router-link to="/html-particles">粒子特效</router-link>
+    <router-link to="/html-particles">粒子</router-link>
+    <router-link to="/html-flow-particles">流动粒子</router-link>
   </nav>
   <router-view />
 </template>
@@ -31,6 +32,7 @@ nav {
   padding: 1rem;
   background-color: #1a1a1a;
   text-align: center;
+  z-index: 10;
 }
 
 nav a {
@@ -38,6 +40,7 @@ nav a {
   padding: 0.5rem 1rem;
   border-radius: 4px;
   transition: background-color 0.3s;
+  z-index: 10;
 }
 
 nav a:hover {

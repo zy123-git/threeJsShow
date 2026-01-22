@@ -58,7 +58,7 @@ function createNoiseTexture(size) {
   
   const initThree = () => {
     // 使用画布尺寸组合函数
-    const { size, updateSize } = useCanvasSize('.three-container');
+    const { sizes, updateSize } = useCanvasSize('.three-container');
     
     // 设置容器位置和尺寸
     updateSize();
@@ -74,7 +74,7 @@ function createNoiseTexture(size) {
     /**
      * 相机
      */
-    camera = new THREE.PerspectiveCamera(75, size.value.width / size.value.height, 0.1, 100);
+    camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 100);
     camera.position.set(0.0 ,-1.0, 2.5);
     camera.lookAt(new THREE.Vector3(0, 2, 0));
     scene.add(camera);
@@ -136,7 +136,7 @@ function createNoiseTexture(size) {
     
     // 渲染器 - 使用已声明的全局renderer变量
     renderer = new THREE.WebGLRenderer({ canvas });
-    renderer.setSize(size.value.width, size.value.height);
+    renderer.setSize(sizes.value.width, sizes.value.height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000); // 设置背景颜色为黑色
     
@@ -145,11 +145,11 @@ function createNoiseTexture(size) {
       updateSize();
       
       // 更新相机
-      camera.aspect = size.value.width / size.value.height;
+      camera.aspect = sizes.value.width / sizes.value.height;
       camera.updateProjectionMatrix();
       
       // 更新渲染器
-      renderer.setSize(size.value.width, size.value.height);
+      renderer.setSize(sizes.value.width, sizes.value.height);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     };
     
@@ -217,16 +217,6 @@ function createNoiseTexture(size) {
   </script>
   
   <style scoped>
-  /* 主容器样式 */
-  .three-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 0; /* 确保在导航栏下方 */
-  }
-  
   /* Canvas样式 */
   .webgl_5 {
     display: block;

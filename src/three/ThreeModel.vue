@@ -23,7 +23,7 @@ let controls=null
 
 const initThree= ()=> {
   // 使用画布尺寸组合函数
-  const { size, updateSize } = useCanvasSize('.three-container');
+  const { sizes, updateSize } = useCanvasSize('.three-container');
   
   // 设置容器位置和尺寸
   updateSize();
@@ -39,7 +39,7 @@ const initThree= ()=> {
    /**
    * 相机
    */
-   camera = new THREE.PerspectiveCamera(75, size.value.width / size.value.height, 0.1, 100);
+   camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 100);
    camera.position.set(0.0 ,0.2, 0.0);
    scene.add(camera);
    //相机控制
@@ -180,7 +180,7 @@ const initThree= ()=> {
 
   // 渲染器
   renderer = new THREE.WebGLRenderer({ canvas });
-  renderer.setSize(size.value.width, size.value.height);
+  renderer.setSize(sizes.value.width, sizes.value.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0x000000); // 设置背景颜色为黑色
   
@@ -189,11 +189,11 @@ const initThree= ()=> {
     updateSize();
     
     // 更新相机
-    camera.aspect = size.value.width / size.value.height;
+    camera.aspect = sizes.value.width / sizes.value.height;
     camera.updateProjectionMatrix();
     
     // 更新渲染器
-    renderer.setSize(size.value.width, size.value.height);
+    renderer.setSize(sizes.value.width, sizes.value.height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   };
   
@@ -245,16 +245,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* 主容器样式 */
-.three-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0; /* 确保在导航栏下方 */
-}
-
 /* Canvas样式 */
 .webgl_2 {
   display: block;
