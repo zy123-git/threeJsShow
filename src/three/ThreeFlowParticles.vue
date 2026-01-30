@@ -1,236 +1,270 @@
 <template>
   <div class="three-container">
-    <canvas class="canvas_9"></canvas>
+    <canvas class="canvas_12"></canvas>
   </div>
 </template>
-
-<script setup lang="ts">
-import { onMounted, onUnmounted, nextTick } from 'vue';
-import * as THREE from 'three';
-import gsap from 'gsap'
-import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/Addons.js';
-import { useCanvasSize } from '../utils/ThreeCanvasSize';
-import vertexShader from '../shader/flowParticlesShader/vertexWithIncludes';
-import fragmentShader from '../shader/flowParticlesShader/fragment.glsl?raw';
-import { SimplexNoise } from 'three/examples/jsm/Addons.js';
-
-// Three.js核心对象
-let scene: THREE.Scene | null = null;
-let camera: THREE.PerspectiveCamera | null = null;
-let renderer: THREE.WebGLRenderer | null = null;
-let canvas = null;
-let gui = null;
-let controls = null;
-let loader = null;
-
-// 使用画布尺寸组合函数
-const { sizes, updateSize } = useCanvasSize('.canvas_9');
-
-// 初始化Three.js场景
-const initThreeScene = () => {
-  canvas = document.querySelector('.canvas_9')
-
-  // 创建场景
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color('#000000');
-
-  gui = new GUI({width: 340});
   
-  // 创建相机
-  camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 1000);
-  camera.position.z = 3; // 调整相机位置以适应50*50小间距粒子矩阵
+<script setup>
+  import { onMounted, onBeforeUnmount } from 'vue';
+  import { useCanvasSize } from '../utils/ThreeCanvasSize';
 
-  controls = new OrbitControls(camera,canvas)
+  import * as THREE from 'three';
+  import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
+  import vertexShader from '@/shader/flowParticlesShader/vertex.glsl?raw';
+  import fragmentShader from '@/shader/flowParticlesShader/fragment.glsl?raw';
+  import gpgpuShader from '@/shader/flowParticlesShader/gpgpuWithIncludes';
+  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+  import { GLTFLoader } from 'three/examples/jsm/Addons.js';
+  import { GPUComputationRenderer } from 'three/examples/jsm/Addons.js';
+
   
-  // 创建渲染器
-  renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
-  renderer.setClearColor('#181818');
-  renderer.setSize(sizes.value.width, sizes.value.height, false); // false参数表示不更新DOM尺寸
+  let canvas = null;
+  let gui = null;
+  let renderer = null;
+  let scene = null;
+  let camera = null;
+  let controls = null;
 
-  const particles = {
-    geometry: null,
-    material: null,
-    positions: null,
-    currentIndex: 0,
-    progress: 0,
-    morph: null,
-    morph0: null,
-    morph1: null,
-    morph2: null,
-    morph3: null,
-    particleSize: null,
-    mixColor1: new THREE.Color('#ff7300'),
-    mixColor2: new THREE.Color('#0091ff'),
-  }
+  /**
+   * 调试
+   */
+  // 初始化 dat.GUI
+  gui = new GUI();
 
-  loader = new GLTFLoader();
-    loader.load(
-        'static/particleModel/particlesModel.gltf',
-        (gltf)=>{
-            let maxGeometryCount=0
-            gltf.scene.children.forEach(child => {
-                if(maxGeometryCount < child.geometry.attributes.position.count)
-                    maxGeometryCount = child.geometry.attributes.position.count
-            });
-
-            particles.positions = []
-            gltf.scene.children.forEach(child => {
-                const aPositions = new Float32Array(3*maxGeometryCount)
-                for(let i=0;i<maxGeometryCount;i++){
-                    if(i < child.geometry.attributes.position.count){
-                      aPositions[3*i]=child.geometry.attributes.position.array[3*i]
-                      aPositions[3*i+1]=child.geometry.attributes.position.array[3*i+1]
-                      aPositions[3*i+2]=child.geometry.attributes.position.array[3*i+2]
-                    }else{
-                        const mRandom = Math.floor(Math.random()*child.geometry.attributes.position.count)
-                        aPositions[3*i]=child.geometry.attributes.position.array[3*mRandom]
-                        aPositions[3*i+1]=child.geometry.attributes.position.array[3*mRandom+1]
-                        aPositions[3*i+2]=child.geometry.attributes.position.array[3*mRandom+2]
-                    }
-                }
-                particles.positions.push(new THREE.Float32BufferAttribute(aPositions, 3))
-            });
-
-            const newArray = new Float32Array(maxGeometryCount)
-            for(let i=0;i<maxGeometryCount;i++){
-                newArray[i] = Math.random() + 1
-            }
-            particles.particleSize = new THREE.Float32BufferAttribute(newArray, 1)
-
-            // 设置目标位置attribute
-            particles.geometry = new THREE.BufferGeometry()
-            particles.geometry.setIndex(null)
-            particles.geometry.setAttribute('position', particles.positions[particles.currentIndex])
-            particles.geometry.setAttribute('aTargetPosition', particles.positions[1])
-            particles.geometry.setAttribute('aParticleSize', particles.particleSize)
-
-            particles.material = new THREE.ShaderMaterial({
-                vertexShader: vertexShader,
-                fragmentShader: fragmentShader,
-                uniforms:
-                {
-                    uSize: new THREE.Uniform(0.1),
-                    uResolution: new THREE.Uniform(new THREE.Vector2(sizes.value.width,sizes.value.height)),
-                    uProgress: new THREE.Uniform(particles.progress),
-                    uMixColor1: new THREE.Uniform(particles.mixColor1),
-                    uMixColor2: new THREE.Uniform(particles.mixColor2)
-                },
-                blending:THREE.AdditiveBlending,
-                depthWrite:false
-            });
-
-            const mParticles = new THREE.Points(particles.geometry,particles.material)
-
-            scene.add(mParticles)
-
-            particles.morph = (index: number) => {
-              particles.geometry.attributes.position = particles.positions[particles.currentIndex]
-              particles.geometry.attributes.aTargetPosition = particles.positions[index]
-
-              gsap.fromTo(
-                particles.material.uniforms.uProgress,
-                {value: 0},
-                {value: 1, duration: 3, ease: 'linear'}
-              )
-
-              particles.currentIndex = index
-            }
-
-            particles.morph0 = () => {particles.morph(0)}
-            particles.morph1 = () => {particles.morph(1)}
-            particles.morph2 = () => {particles.morph(2)}
-            particles.morph3 = () => {particles.morph(3)}
-
-            gui.addColor(scene, 'background')
-            gui
-              .add(particles, 'progress')
-              .min(0)
-              .max(1)
-              .step(0.001)
-              .name('进度')
-              .onChange(() => {
-                  particles.material.uniforms.uProgress.value = particles.progress
-              });
-            gui.add(particles, 'morph0')
-            gui.add(particles, 'morph1')
-            gui.add(particles, 'morph2')
-            gui.add(particles, 'morph3')
-            gui.addColor(particles, 'mixColor1')
-            gui.addColor(particles, 'mixColor2')
-        }
-    )
-
-  const tick = () => {
-
-    renderer.render(scene, camera);
-    window.requestAnimationFrame(tick);
-  }
-  tick()
-};
-
-// 处理窗口大小变化
-const handleResize = () => {
-  if (!canvas || !camera || !renderer) return;
   
-  // 使用组合函数更新尺寸
-  updateSize();
+  const initThree = async () => {
+    // 使用画布尺寸组合函数
+    const { sizes, updateSize } = useCanvasSize('.three-container');
+    
+    // 设置容器位置和尺寸
+    updateSize();
   
-  // 更新canvas元素尺寸
-  if (canvas) {
-    canvas.style.width = `${sizes.value.width}px`;
-    canvas.style.height = `${sizes.value.height}px`;
-  }
-  
-  // 更新相机和渲染器
-  camera.aspect = sizes.value.width / sizes.value.height;
-  camera.updateProjectionMatrix();
-  
-  renderer.setSize(sizes.value.width, sizes.value.height, false); // false参数表示不更新DOM尺寸
-};
+    /**
+     * 场景环境设置
+     */
+    //画布
+    canvas = document.querySelector('.canvas_12')
+    // 场景
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
 
-// 组件挂载时初始化
-onMounted(async () => {
-  // 等待DOM更新完成
-  await nextTick();
-  
-  // 初始化Three.js场景
-  initThreeScene();
-  
-  // 监听窗口大小变化
-  // 注意：useCanvasSize已经处理了resize事件，但我们保留这个以便于可能的额外处理
-  window.addEventListener('resize', handleResize);
-});
+    
+    // 创建相机
+    camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 1000);
+    camera.position.z = 15; // 调整相机位置以适应50*50小间距粒子矩阵
 
-// 组件卸载时清理资源
-onUnmounted(() => {
+    controls = new OrbitControls(camera,canvas)
 
-  // 移除事件监听
-  window.removeEventListener('resize', handleResize);
-  
-  // 释放Three.js资源
-  
-  // 清理渲染器
-  if (renderer) {
-    if (renderer.domElement && renderer.domElement.parentNode) {
-      (renderer.domElement.parentNode as HTMLElement).removeChild(renderer.domElement);
+    /**
+     * 相机组
+     */
+    
+    // 渲染器
+    const renderer = new THREE.WebGLRenderer({ canvas });
+    renderer.setSize(sizes.value.width, sizes.value.height);
+    renderer.setClearColor(0x000000); // 设置背景颜色为黑色
+
+    const gltfLoader = new GLTFLoader()
+    const gltf = await gltfLoader.loadAsync('static/mv_spartan/spartan.gltf')
+
+    let baseGeometry = {}
+    baseGeometry.geometry = gltf.scene.children[0].geometry
+    baseGeometry.count = baseGeometry.geometry.attributes.position.count
+
+    let gpgpu = {}
+    gpgpu.size = Math.floor(Math.sqrt(baseGeometry.count))+1
+    gpgpu.computation = new GPUComputationRenderer(gpgpu.size,gpgpu.size,renderer)
+
+    //FBO初始纹理
+    const baseParticlesTexture = gpgpu.computation.createTexture()
+
+    for(let i = 0; i < baseGeometry.count; i++){
+      const i3 = i * 3;
+      const i4 = i * 4;
+
+      baseParticlesTexture.image.data[i4 + 0] = baseGeometry.geometry.attributes.position.array[i3 + 0]
+      baseParticlesTexture.image.data[i4 + 1] = baseGeometry.geometry.attributes.position.array[i3 + 1]
+      baseParticlesTexture.image.data[i4 + 2] = baseGeometry.geometry.attributes.position.array[i3 + 2]
+      baseParticlesTexture.image.data[i4 + 3] = Math.random()
     }
-    renderer.dispose();
-    renderer = null;
-  }
-  
-  // 清理相机和场景引用
-  camera = null;
-  scene = null;
-});
-</script>
 
-<style scoped>
-/* Canvas样式 */
-.canvas_8 {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-</style>
+    
+    gpgpu.particlesVariable = gpgpu.computation.addVariable('uParticles', gpgpuShader, baseParticlesTexture)
+    gpgpu.computation.setVariableDependencies(gpgpu.particlesVariable, [gpgpu.particlesVariable])
+
+    gpgpu.particlesVariable.material.uniforms.uTime = new THREE.Uniform(0)
+    gpgpu.particlesVariable.material.uniforms.uDeltaTime = new THREE.Uniform(0)
+    gpgpu.particlesVariable.material.uniforms.uFlowFeildInfluence = new THREE.Uniform(0.5)
+    gpgpu.particlesVariable.material.uniforms.uFlowStrength = new THREE.Uniform(1.5)
+    //传递初始位置纹理
+    gpgpu.particlesVariable.material.uniforms.uBase = new THREE.Uniform(baseParticlesTexture)
+
+    gpgpu.computation.init()
+
+    //测试
+    gpgpu.debug = new THREE.Mesh(
+      new THREE.PlaneGeometry(3,3),
+      new THREE.MeshBasicMaterial({
+        map: gpgpu.computation.getCurrentRenderTarget(gpgpu.particlesVariable).texture
+      })
+    )
+    gpgpu.debug.position.x = 3
+    gpgpu.debug.visible = false
+    scene.add(gpgpu.debug)
+
+
+    let particles = {}
+
+    particles.particleUvArray = new Float32Array(baseGeometry.count * 2)
+    for(let y = 0; y < gpgpu.size; y++){
+      for(let x = 0; x < gpgpu.size; x++){
+        const i = (y * gpgpu.size) + x
+        const i2 = i * 2
+
+        const uvX = (x + 0.5) / gpgpu.size
+        const uvY = (y + 0.5) / gpgpu.size
+
+        particles.particleUvArray[i2] = uvX
+        particles.particleUvArray[i2+1] = uvY
+      }
+    }
+
+    const buffer = baseGeometry.geometry.attributes.color_1.array
+    let realBuffer = new Float32Array(baseGeometry.geometry.attributes.color_1.count * 4)
+    for(let i = 0; i < baseGeometry.geometry.attributes.color_1.count * 4; i++){
+      realBuffer[i] = buffer[i] / 65535
+    }
+
+    particles.particleSize = new Float32Array(baseGeometry.count)
+    for(let i = 0; i < baseGeometry.count; i++){
+      particles.particleSize[i] = Math.random()
+    }
+
+    particles.geometry = new THREE.BufferGeometry()
+    particles.geometry.setDrawRange(0,baseGeometry.count)
+    particles.geometry.setAttribute('aParticleUv', new THREE.BufferAttribute(particles.particleUvArray, 2))
+    particles.geometry.setAttribute('aColor', new THREE.BufferAttribute(realBuffer,4))
+    particles.geometry.setAttribute('aParticleSize', new THREE.BufferAttribute(particles.particleSize, 1))
+
+    particles.material = new THREE.ShaderMaterial({
+        vertexShader:vertexShader,
+        fragmentShader:fragmentShader,
+        uniforms:{
+            uSize: new THREE.Uniform(0.1),
+            uResolution: new THREE.Uniform(new THREE.Vector2(sizes.value.width,sizes.value.height)),
+            uParticlesTexture: new THREE.Uniform()
+        }
+    })
+
+    particles.mParticles = new THREE.Points(particles.geometry, particles.material)
+
+    scene.add(particles.mParticles)
+
+    gui
+      .add(particles.material.uniforms.uSize, 'value')
+      .min(0.01)
+      .max(0.5)
+      .step(0.01)
+      .name('粒子大小')
+    gui
+      .add(gpgpu.particlesVariable.material.uniforms.uFlowFeildInfluence, 'value')
+      .min(0)
+      .max(1)
+      .name('影响范围')
+    gui
+      .add(gpgpu.particlesVariable.material.uniforms.uFlowStrength, 'value')
+      .min(0)
+      .max(5)
+      .step(0.1)
+      .name('流动强度')
+    
+    // 处理窗口大小变化
+    const handleResize = () => {
+      updateSize();
+      
+        // 更新canvas元素尺寸
+      if (canvas) {
+        canvas.style.width = `${sizes.value.width}px`;
+        canvas.style.height = `${sizes.value.height}px`;
+      }
+      
+      // 更新相机和渲染器
+      camera.aspect = sizes.value.width / sizes.value.height;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(sizes.value.width, sizes.value.height)
+      
+      particles.material.uniforms.uResolution.value.set(sizes.value.width,sizes.value.height)
+    };
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', handleResize);
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', handleResize);
+    });
+  
+    /**
+     * 帧更新(动画)
+     */
+    const clock = new THREE.Clock();
+    let previousTime = 0
+    const tick = () => {
+      const elapsedTime = clock.getElapsedTime()
+      const deltaTime = elapsedTime - previousTime
+      previousTime = elapsedTime
+
+      //gpgpu更新
+      gpgpu.particlesVariable.material.uniforms.uTime.value = elapsedTime
+      gpgpu.particlesVariable.material.uniforms.uDeltaTime.value = deltaTime
+      gpgpu.computation.compute()
+      particles.material.uniforms.uParticlesTexture.value = gpgpu.computation.getCurrentRenderTarget(gpgpu.particlesVariable).texture
+      
+      // 渲染
+      renderer.render(scene, camera);
+  
+      requestAnimationFrame(tick);
+    };
+  
+    // 启动动画循环
+    tick();
+  };
+  
+  onMounted(() => {
+    initThree();
+  });
+  
+  onBeforeUnmount(() => {
+    if (gui) {
+      gui.destroy();
+    }
+  
+    // 清理Three.js资源
+    if (renderer) {
+      renderer.dispose();
+      renderer.domElement.remove();
+    }
+    // 清理场景中的对象
+    if (scene) {
+      scene.traverse((object) => {
+        if (object.geometry) object.geometry.dispose();
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach((material) => material.dispose());
+          } else {
+            object.material.dispose();
+          }
+        }
+      });
+    }
+  });
+  </script>
+  
+  <style scoped>
+  /* Canvas样式 */
+  .webgl_3 {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  </style>
+  

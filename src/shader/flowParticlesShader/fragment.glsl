@@ -1,15 +1,11 @@
-precision mediump float;
-
 varying vec3 vColor;
 
 void main() {
     vec2 uv = gl_PointCoord;
 
     float distanceToCenter = length(uv - 0.5);
+    if(distanceToCenter > 0.5)
+        discard;
 
-    float alpha = 0.04 / distanceToCenter - 0.4;
-
-    gl_FragColor = vec4(vColor, alpha);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
+    gl_FragColor = vec4(vColor, 1.0);
 }

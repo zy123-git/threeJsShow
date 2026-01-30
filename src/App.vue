@@ -4,12 +4,13 @@
     <router-link to="/html-galaxy">星系</router-link>
     <router-link to="/html-scroll">滚动特效</router-link>
     <router-link to="/html-model">3D模型</router-link>
-    <router-link to="/html-book">书页</router-link>
+    <router-link to="/html-wobbly-sphere">可变形球体</router-link>
     <router-link to="/html-sea">海洋</router-link>
     <router-link to="/html-forest">森林</router-link>
     <router-link to="/html-fireworks">烟花</router-link>
     <router-link to="/html-classroom">教室</router-link>
     <router-link to="/html-particles">粒子</router-link>
+    <router-link to="/html-morph-particles">变形粒子</router-link>
     <router-link to="/html-flow-particles">流动粒子</router-link>
   </nav>
   <router-view />

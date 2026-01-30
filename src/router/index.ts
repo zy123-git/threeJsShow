@@ -23,9 +23,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/HTMLModel.vue'),
   },
   {
-    path: '/html-book',
-    name: 'HTMLBook',
-    component: () => import('../views/HTMLBook.vue'),
+    path: '/html-wobbly-sphere',
+    name: 'HTMLWobblySphere',
+    component: () => import('../views/HTMLWobblySphere.vue'),
   },
   {
     path: '/html-sea',
@@ -51,6 +51,11 @@ const routes: RouteRecordRaw[] = [
     path: '/html-particles',
     name: 'HTMLParticles',
     component: () => import('../views/HTMLParticles.vue'),
+  },
+  {
+    path: '/html-morph-particles',
+    name: 'HTMLMorphParticles',
+    component: () => import('../views/HTMLMorphParticles.vue'),
   },
   {
     path: '/html-flow-particles',

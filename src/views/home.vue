@@ -22,10 +22,10 @@
         <p>Three.js 实现的3D模型展示</p>
       </router-link>
 
-      <router-link to="/html-book" class="nav-card">
-        <div class="card-icon">📚</div>
-        <h3>书页</h3>
-        <p>书页效果，自定义着色器实现</p>
+      <router-link to="/html-wobbly-sphere" class="nav-card">
+        <div class="card-icon">🌍</div>
+        <h3>可变形球体</h3>
+        <p>可变形球体效果，自定义着色器实现</p>
       </router-link>
 
       <router-link to="/html-sea" class="nav-card">
@@ -62,6 +62,12 @@
         <div class="card-icon">✨</div>
         <h3>流动粒子特效</h3>
         <p>流动粒子特效展示，动态环境模拟</p>
+      </router-link>
+      
+      <router-link to="/html-morph-particles" class="nav-card">
+        <div class="card-icon">✨</div>
+        <h3>变形粒子特效</h3>
+        <p>变形粒子特效展示，动态环境模拟</p>
       </router-link>
     </div>
 
@@ -111,7 +117,29 @@
   gap: 2rem;
   max-width: 1500px;
   width: 100%;
+  max-height: 800px;
+  overflow-y: auto;
   margin-bottom: 3rem;
+  padding-right: 0.5rem;
+}
+
+/* 自定义滚动条样式 */
+.navigation-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.navigation-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.navigation-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+}
+
+.navigation-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .nav-card {

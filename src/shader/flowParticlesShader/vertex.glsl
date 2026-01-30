@@ -1,41 +1,34 @@
-precision mediump float;
-attribute vec3 aTargetPosition;
+attribute vec2 aParticleUv;
+attribute vec4 aColor;
 attribute float aParticleSize;
 
 uniform float uSize;
 uniform vec2 uResolution;
-uniform float uProgress;
-uniform vec3 uMixColor1;
-uniform vec3 uMixColor2;
+uniform sampler2D uParticlesTexture;
+
 
 varying vec3 vColor;
 
-#include ../includes/simplexNoise3D.glsl
-
 void main() {
-    float noiseOrign = simplexNoise3D(position);
-    float noiseTarget = simplexNoise3D(aTargetPosition);
-    float noise = mix(noiseOrign, noiseTarget, uProgress);
-    noise = smoothstep(-1.0,1.0,noise);
-
-    float duration = 0.6;
-    float delay = (1.0 - duration) * noise;
-    float end = duration + delay;
-    float progress = smoothstep(delay, end, uProgress);
-    vec3 mixPosition = mix(position,aTargetPosition,progress);
+    vec4 particle = texture(uParticlesTexture, aParticleUv);
 
     //粒子位置
-    vec4 modelPosition = modelMatrix * vec4(mixPosition, 1.0);
+    vec4 modelPosition = modelMatrix * vec4(particle.xyz, 1.0);
     vec4 viewPosition = viewMatrix * modelPosition;
     vec4 projectedPosition = projectionMatrix * viewPosition;
+
+    //粒子生命周期大小变化
+    float sizeIn = smoothstep(0.0, 0.1, particle.a);
+    float sizeOut = smoothstep(1.0, 0.7, particle.a);
+    float size = min(sizeIn,sizeOut);
 
     gl_Position = projectedPosition;
 
     //粒子大小
-    gl_PointSize = uSize * uResolution.y * aParticleSize;
+    gl_PointSize = uSize * uResolution.y * aParticleSize * size;
     
     //距离衰减
     gl_PointSize *= ( 1.0 / - viewPosition.z );
 
-    vColor = mix(uMixColor1, uMixColor2, noise);
+    vColor = aColor.xyz;
 }
