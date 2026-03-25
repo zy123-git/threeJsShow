@@ -6,7 +6,7 @@ float permute(float x){return floor(mod(((x*34.0)+1.0)*x, 289.0));}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 float taylorInvSqrt(float r){return 1.79284291400159 - 0.85373472095314 * r;}
 
-vec4 grad4(float j, vec4 ip){
+vec4 simplexNoise4D(float j, vec4 ip){
   const vec4 ones = vec4(1.0, 1.0, 1.0, -1.0);
   vec4 p,s;
 
@@ -68,11 +68,11 @@ float simplexNoise4D(vec4 v){
 
   vec4 ip = vec4(1.0/294.0, 1.0/49.0, 1.0/7.0, 0.0) ;
 
-  vec4 p0 = grad4(j0,   ip);
-  vec4 p1 = grad4(j1.x, ip);
-  vec4 p2 = grad4(j1.y, ip);
-  vec4 p3 = grad4(j1.z, ip);
-  vec4 p4 = grad4(j1.w, ip);
+  vec4 p0 = simplexNoise4D(j0,   ip);
+  vec4 p1 = simplexNoise4D(j1.x, ip);
+  vec4 p2 = simplexNoise4D(j1.y, ip);
+  vec4 p3 = simplexNoise4D(j1.z, ip);
+  vec4 p4 = simplexNoise4D(j1.w, ip);
 
 // Normalise gradients
   vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="three-container">
     <canvas class="webgl_1"></canvas>
   </div>
@@ -6,7 +6,7 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount } from 'vue';
-import { useCanvasSize } from '../utils/ThreeCanvasSize';
+import { useElementSize } from '../utils/useElementSize';
 import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import vertexShader from '@/shader/galaxyShader/vertex.glsl?raw';
@@ -98,10 +98,10 @@ function squareRandom() {
 
 const initThree = () => {
   // 使用画布尺寸组合函数
-  const { sizes, updateSize } = useCanvasSize('.three-container');
+  const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
   
   // 设置容器位置和尺寸
-  updateSize();
+  updateElementSize();
 
   /**
    * 场景环境设置
@@ -119,7 +119,7 @@ const initThree = () => {
    // camera.position.y = 5;
    // camera.position.z = 3;
    // camera.lookAt(new THREE.Vector3(0, 0, 0));
-   camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 100);
+   camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 100);
    camera.position.set(0, -6, 6);
    scene.add(camera);
 
@@ -230,29 +230,13 @@ const initThree = () => {
 
 
   // 渲染器
-  const renderer = new THREE.WebGLRenderer({ canvas });
-  renderer.setSize(sizes.value.width, sizes.value.height);
+  renderer = new THREE.WebGLRenderer({ canvas });
+  renderer.setSize(elementSize.value.width, elementSize.value.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0x000000); // 设置背景颜色为黑色
   
-  // 处理窗口大小变化
-  const handleResize = () => {
-    updateSize();
-    
-    // 更新相机
-    camera.aspect = sizes.value.width / sizes.value.height;
-    camera.updateProjectionMatrix();
-    
-    // 更新渲染器
-    renderer.setSize(sizes.value.width, sizes.value.height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  };
-  
-  // 监听窗口大小变化
-  window.addEventListener('resize', handleResize);
-  onBeforeUnmount(() => {
-    window.removeEventListener('resize', handleResize);
-  });
+  // 绑定响应式尺寸更新
+  bindRenderer(renderer, camera);
 
 
 

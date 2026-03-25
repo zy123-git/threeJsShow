@@ -6,7 +6,7 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, watch } from 'vue';
-import { useCanvasSize } from '../utils/ThreeCanvasSize';
+import { useElementSize } from '../utils/useElementSize';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -15,7 +15,7 @@ import vertexShader from '@/shader/fireworkShander/vertex.glsl?raw';
 import fragmentShader from '@/shader/fireworkShander/fragment.glsl?raw';
 import { Sky } from 'three/addons/objects/Sky.js';
 
-// 全局变量声明，便于在组件卸载时进行清理
+// 全局变量声明，便于在组件卸载时进行清�?
 let scene = null;
 let camera = null;
 let renderer = null;
@@ -45,6 +45,8 @@ const createFireworks=(
     texture=textures.icon_1,
     radius=1,
   )=>{
+    // scene为空时不执行（组件已卸载）
+    if (!scene) return;
     const particlePosition = new Float32Array(particleCount * 3);
     const partcleSize = new Float32Array(particleCount);
     const timeMutiplier = new Float32Array(particleCount);
@@ -54,8 +56,8 @@ const createFireworks=(
     const increment = Math.PI * 2 * goldenRatio;
 
     for (let i = 0; i < particleCount; i++) {
-      const y = 1 - (i / (particleCount - 1)) * 2; // y从1到-1
-      const orRadius = Math.sqrt(1 - y * y); // 半径在y处的圆
+      const y = 1 - (i / (particleCount - 1)) * 2; // y�?�?1
+      const orRadius = Math.sqrt(1 - y * y); // 半径在y处的�?
       
       const theta = increment * i; // 黄金角递增
       
@@ -114,6 +116,9 @@ const createFireworks=(
 };
 
 const createRandomFireworks=()=>{
+  // scene为空时不执行（组件已卸载）
+  if (!scene) return;
+  
   const particleCount = Math.floor(Math.random() * 1000 + 400);
   const position = new THREE.Vector3(
     (Math.random() - 0.5) * 3,
@@ -128,43 +133,30 @@ const createRandomFireworks=()=>{
 
 const init=()=>{
     // 使用画布尺寸组合函数
-    const { sizes, updateSize } = useCanvasSize('.three-container');
+    const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
     
-    // 设置容器位置和尺寸
-    updateSize();
+    // 设置容器位置和尺�?
+    updateElementSize();
 
     scene = new THREE.Scene();
 
     canvas = document.querySelector('.webgl_6');
 
-    camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 1000);
     camera.position.z = 3;
 
     controls = new OrbitControls(camera, canvas);
-    //使相机的旋转和缩放操作更加流畅自然。
+    //使相机的旋转和缩放操作更加流畅自然�?
     controls.enableDamping = true;
 
     renderer = new THREE.WebGLRenderer({
       canvas: canvas,
     });
-    renderer.setSize(sizes.value.width, sizes.value.height);
+    renderer.setSize(elementSize.value.width, elementSize.value.height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     
-    // 处理窗口大小变化
-    resizeHandler = () => {
-      updateSize();
-      
-      // 更新相机
-      camera.aspect = sizes.value.width / sizes.value.height;
-      camera.updateProjectionMatrix();
-      
-      // 更新渲染器
-      renderer.setSize(sizes.value.width, sizes.value.height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    };
-    
-    // 监听窗口大小变化
-    window.addEventListener('resize', resizeHandler);
+    // 绑定响应式尺寸更�?
+    bindRenderer(renderer, camera);
 
     createFireworks();
 
@@ -244,24 +236,27 @@ const init=()=>{
     tick();
 };
 
-// 存储定时器ID的变量
+// 存储定时器ID的变�?
 let fireworkInterval = null;
 
-// 自动播放烟花的函数
+// 自动播放烟花的函�?
 const startAutoFireworks = () => {
+  // scene为空时不执行（组件已卸载）
+  if (!scene) return;
+  
   // 定义烟花播放规律
-  let interval = 1000; // 初始间隔1秒
+  let interval = 1000; // 初始间隔1�?
   const minInterval = 100;
   const maxInterval = 1500;
   
-  // 避免重复创建定时器
+  // 避免重复创建定时�?
   if (fireworkInterval !== null) {
-    clearInterval(fireworkInterval);
+    clearTimeout(fireworkInterval);
   }
   
-  // 创建新的定时器
+  // 创建新的定时�?
   fireworkInterval = setTimeout(() => {
-    // 随机播放1-3个烟花
+    // 随机播放1-3个烟�?
     const fireworkCount = Math.floor(Math.random() * 4) + 1;
     for (let i = 0; i < fireworkCount; i++) {
       createRandomFireworks();
@@ -270,19 +265,22 @@ const startAutoFireworks = () => {
     interval = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval;
       
     // 清除当前定时器并设置新的定时器，避免递归调用
-    clearInterval(fireworkInterval);
+    clearTimeout(fireworkInterval);
     startAutoFireworksWithDelay(interval);
   }, interval);
 };
 
 // 使用setTimeout替代递归调用，避免调用栈累积
 const startAutoFireworksWithDelay = (delay) => {
-  setTimeout(() => {
+  // scene为空时不执行（组件已卸载）
+  if (!scene) return;
+  
+  fireworkInterval = setTimeout(() => {
     startAutoFireworks();    
   }, delay);
 };
 
-// 在组件卸载时进行完整的资源清理
+// 在组件卸载时进行完整的资源清�?
 onBeforeUnmount(() => {
   // 1. 清除所有定时器和setTimeout
   if (fireworkInterval !== null) {
@@ -291,13 +289,13 @@ onBeforeUnmount(() => {
     fireworkInterval = null;
   }
   
-  // 2. 取消动画帧请求
+  // 2. 取消动画帧请�?
   if (animationId !== null) {
     cancelAnimationFrame(animationId);
     animationId = null;
   }
   
-  // 3. 移除事件监听器
+  // 3. 移除事件监听�?
   if (resizeHandler !== null) {
     window.removeEventListener('resize', resizeHandler);
     resizeHandler = null;
@@ -326,10 +324,10 @@ onBeforeUnmount(() => {
               child.material.dispose();
             }
           }
-          // 移除子对象
+          // 移除子对�?
           if (scene && scene.remove) scene.remove(child);
         } catch (err) {
-          // 忽略单个对象清理的错误
+          // 忽略单个对象清理的错�?
           console.warn('Error disposing child object:', err);
         }
       });
@@ -372,13 +370,13 @@ onBeforeUnmount(() => {
     console.warn('Error during textures cleanup:', err);
   }
   
-  // 8. 释放WebGL渲染器和上下文
+  // 8. 释放WebGL渲染器和上下�?
   try {
     if (renderer && typeof renderer.dispose === 'function') {
-      // 停止渲染器
+      // 停止渲染�?
       renderer.dispose();
       
-      // 尝试释放WebGL上下文
+      // 尝试释放WebGL上下�?
       try {
         if (renderer.getContext) {
           const gl = renderer.getContext();
@@ -417,19 +415,10 @@ onBeforeUnmount(() => {
 
 onMounted(() => {
   init();
-  // 延迟1秒后开始自动播放烟花
+  // 延迟1秒后开始自动播放烟�?
   setTimeout(() => {
     startAutoFireworks();
   }, 1000);
 });
 
 </script>
-
-<style scoped>
-/* Canvas样式 */
-.webgl_6 {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-</style>

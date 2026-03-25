@@ -1,5 +1,7 @@
 <template>
-  <canvas class="webgl"></canvas>
+  <div class="three-container">
+    <canvas class="webgl"></canvas>
+  </div>
 </template>
 
 <script setup>
@@ -8,6 +10,7 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import { Material } from 'three';
 import gsap from 'gsap';
+import { useElementSize } from '../utils/useElementSize';
 
 let gui = null;
 let renderer = null;
@@ -16,12 +19,20 @@ let camera = null;
 let animationId = null;
 let scrollY = 0;
 let currentSection = 0;
+let scrollContainer = null;
+let handleScroll = null;
 
 const initThree = () => {
+  // 使用画布尺寸组合函数
+  const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
+  
+  // 设置容器位置和尺寸
+  updateElementSize();
+
   /**
    * 调试
    */
-  // 初始化 dat.GUI
+  // 初始化dat.GUI
   gui = new dat.GUI();
 
   const parameters = {
@@ -38,8 +49,11 @@ const initThree = () => {
   //Canvas
   const canvas = document.querySelector('canvas.webgl');
 
-  window.addEventListener('scroll', () => {
-    scrollY = window.scrollY;
+  // 监听main元素的滚动事件（因为App.vue中main是滚动容器）
+  scrollContainer = document.querySelector('main') || window;
+  
+  handleScroll = () => {
+    scrollY = scrollContainer.scrollTop || window.scrollY;
 
     const newSection = Math.round(scrollY / window.innerHeight);
 
@@ -54,7 +68,10 @@ const initThree = () => {
         z: '+=1',
       });
     }
-  });
+  };
+
+  // 添加滚动监听
+  scrollContainer.addEventListener('scroll', handleScroll);
 
   // 场景
   scene = new THREE.Scene();
@@ -63,15 +80,15 @@ const initThree = () => {
    * 物体
    */
   //纹理
-  const textureLoader = new THREE.TextureLoader();
-  const gradientTexture = textureLoader.load('/static/textures/texture_1.png');
-  gradientTexture.magFilter = THREE.NearestFilter;
+  // const textureLoader = new THREE.TextureLoader();
+  // const gradientTexture = textureLoader.load('/static/textures/texture_1.png');
+  // gradientTexture.magFilter = THREE.NearestFilter;
 
   //材质
 
   const material = new THREE.MeshToonMaterial({
     color: parameters.materialColor,
-    gradientMap: gradientTexture,
+    // gradientMap: gradientTexture,
   });
 
   //网格
@@ -97,7 +114,6 @@ const initThree = () => {
 
   scene.add(mesh1, mesh2, mesh3);
 
-  //物体放在一个对象中方便管理，后面添加物体不用做过多的修改
   const sectionMeshes = [mesh1, mesh2, mesh3];
 
   /**
@@ -136,7 +152,7 @@ const initThree = () => {
   const cameraGroup = new THREE.Group();
   scene.add(cameraGroup);
 
-  camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(35, elementSize.value.width / elementSize.value.height, 0.1, 1000);
   camera.position.z = 6;
   cameraGroup.add(camera);
 
@@ -146,9 +162,12 @@ const initThree = () => {
     alpha: true,
   });
 
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x000000, 0); // 设置清除颜色为完全透明
+  renderer.setSize(elementSize.value.width, elementSize.value.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  document.body.appendChild(renderer.domElement);
+  
+  // 绑定响应式尺寸更新
+  bindRenderer(renderer, camera);
 
   //鼠标位置
   const cursor = {
@@ -163,7 +182,7 @@ const initThree = () => {
   });
 
   /**
-   * 帧更新(动画)
+   * 帧更�?动画)
    */
   const clock = new THREE.Clock();
   let previousTime = 0;
@@ -180,7 +199,6 @@ const initThree = () => {
     const parallaxX = cursor.x;
     const parallaxY = -cursor.y;
 
-    //真实感
     cameraGroup.position.x += (parallaxX - cameraGroup.position.x) * 5 * deltaTime;
     cameraGroup.position.y += (parallaxY - cameraGroup.position.y) * 5 * deltaTime;
 
@@ -221,9 +239,10 @@ onBeforeUnmount(() => {
     window.cancelAnimationFrame(animationId);
   }
 
-  // 移除事件监听器
-  window.removeEventListener('scroll', () => {});
-  window.removeEventListener('resize', () => {});
+  // 移除事件监听
+  if (scrollContainer) {
+    scrollContainer.removeEventListener('scroll', handleScroll);
+  }
 
   // 清理场景中的对象
   if (scene) {
@@ -242,16 +261,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-.webgl {
-  width: 100vw;
-  height: 100vh;
-
+.three-container {
   position: fixed;
   top: 0;
-  left: 0;
-
-  z-index: 1;
-  pointer-events: none; /* 禁用所有鼠标事件 */
+  
+  z-index: -1;
+  pointer-events: none; /* 禁用所有鼠标事�?*/
   user-select: none; /* 禁止文本选择 */
+
 }
 </style>

@@ -6,7 +6,7 @@
   
 <script setup>
   import { onMounted, onBeforeUnmount, ref } from 'vue';
-import { useCanvasSize } from '../utils/ThreeCanvasSize';
+import { useElementSize } from '../utils/useElementSize';
   import * as THREE from 'three';
   import * as dat from 'dat.gui';
   import vertexShader from '@/shader/seaShader/vertex.glsl?raw';
@@ -22,12 +22,12 @@ import { useCanvasSize } from '../utils/ThreeCanvasSize';
   let camera = null;
   let controls = null;
   
-  //通过添加到对象的方式可以不用定义，适合一个对象中各个属性的添加，但变量名尽量简便
+  //通过添加到对象的方式可以不用定义，适合一个对象中各个属性的添加，但变量名尽量简�?
   const parameters = {};
   parameters.ceilingColor = '#9bd8ff';
   parameters.floorColor = '#186691';
 
-  // 在ThreeSea.vue中添加
+  // 在ThreeSea.vue中添�?
   // 创建噪声纹理
 function createNoiseTexture(size) {
     const canvas = document.createElement('canvas');
@@ -52,7 +52,7 @@ function createNoiseTexture(size) {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.generateMipmaps = false; // 禁用mipmap生成
-    texture.minFilter = THREE.LinearFilter; // 使用线性过滤
+    texture.minFilter = THREE.LinearFilter; // 使用线性过�?
     return texture;
 }
 
@@ -60,10 +60,10 @@ function createNoiseTexture(size) {
   
   const initThree = () => {
     // 使用画布尺寸组合函数
-    const { sizes, updateSize } = useCanvasSize('.three-container');
+    const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
     
     // 设置容器位置和尺寸
-    updateSize();
+    updateElementSize();
   
     /**
      * 场景环境设置
@@ -76,7 +76,7 @@ function createNoiseTexture(size) {
     /**
      * 相机
      */
-     camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 100);
+     camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 100);
      camera.lookAt(new THREE.Vector3(0, 0, 0));
      camera.position.y = -2.5;
      camera.position.z = 1.5; // 设置相机位置
@@ -112,7 +112,7 @@ function createNoiseTexture(size) {
     });
 
   
-    //几何体
+    //几何�?
     const geometry = new THREE.PlaneGeometry(2, 2, 256, 256)
 
     const plane = new THREE.Mesh(geometry, material);
@@ -121,7 +121,7 @@ function createNoiseTexture(size) {
     /**
      * 调试
      */
-    // 初始化 dat.GUI
+    // 初始�?dat.GUI
     gui.addColor(parameters, 'ceilingColor').name('顶部颜色').onChange((value) => {        
         material.uniforms.uCeilingColor.value.set(parameters.ceilingColor) ;
     });
@@ -134,38 +134,22 @@ function createNoiseTexture(size) {
      */
     
     /**
-     * 相机组
+     * 相机�?
      */
     
     // 渲染器 - 使用已声明的全局renderer变量
     renderer = new THREE.WebGLRenderer({ canvas });
-    renderer.setSize(sizes.value.width, sizes.value.height);
+    renderer.setSize(elementSize.value.width, elementSize.value.height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000); // 设置背景颜色为黑色
     
-    // 处理窗口大小变化
-    const handleResize = () => {
-      updateSize();
-      
-      // 更新相机
-      camera.aspect = sizes.value.width / sizes.value.height;
-      camera.updateProjectionMatrix();
-      
-      // 更新渲染器
-      renderer.setSize(sizes.value.width, sizes.value.height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    };
-    
-    // 监听窗口大小变化
-    window.addEventListener('resize', handleResize);
-    onBeforeUnmount(() => {
-      window.removeEventListener('resize', handleResize);
-    });
+    // 绑定响应式尺寸更新
+    bindRenderer(renderer, camera);
   
   
   
     /**
-     * 帧更新(动画)
+     * 帧更�?动画)
      */
     const clock = new THREE.Clock();
     const tick = () => {

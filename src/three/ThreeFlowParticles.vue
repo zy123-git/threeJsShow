@@ -5,8 +5,8 @@
 </template>
   
 <script setup>
-  import { onMounted, onBeforeUnmount } from 'vue';
-  import { useCanvasSize } from '../utils/ThreeCanvasSize';
+  import { onMounted, onBeforeUnmount, render } from 'vue';
+  import { useElementSize } from '../utils/useElementSize';
 
   import * as THREE from 'three';
   import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -28,16 +28,14 @@
   /**
    * 调试
    */
-  // 初始化 dat.GUI
+  // 初始化dat.GUI
   gui = new GUI();
 
   
   const initThree = async () => {
     // 使用画布尺寸组合函数
-    const { sizes, updateSize } = useCanvasSize('.three-container');
-    
-    // 设置容器位置和尺寸
-    updateSize();
+    const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
+    updateElementSize();
   
     /**
      * 场景环境设置
@@ -50,19 +48,15 @@
 
     
     // 创建相机
-    camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 1000);
-    camera.position.z = 15; // 调整相机位置以适应50*50小间距粒子矩阵
-
+    camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 1000);
+    camera.position.z = 15; // 调整相机位置以适应50*50小间距粒子矩�?
     controls = new OrbitControls(camera,canvas)
 
-    /**
-     * 相机组
-     */
-    
-    // 渲染器
-    const renderer = new THREE.WebGLRenderer({ canvas });
-    renderer.setSize(sizes.value.width, sizes.value.height);
-    renderer.setClearColor(0x000000); // 设置背景颜色为黑色
+    //渲染器
+    renderer = new THREE.WebGLRenderer({ canvas });
+    renderer.setSize(elementSize.value.width, elementSize.value.height);
+    renderer.setClearColor(0x000000); // 设置背景颜色为黑�?
+    bindRenderer(renderer, camera)
 
     const gltfLoader = new GLTFLoader()
     const gltf = await gltfLoader.loadAsync('static/mv_spartan/spartan.gltf')
@@ -96,8 +90,7 @@
     gpgpu.particlesVariable.material.uniforms.uDeltaTime = new THREE.Uniform(0)
     gpgpu.particlesVariable.material.uniforms.uFlowFeildInfluence = new THREE.Uniform(0.5)
     gpgpu.particlesVariable.material.uniforms.uFlowStrength = new THREE.Uniform(1.5)
-    //传递初始位置纹理
-    gpgpu.particlesVariable.material.uniforms.uBase = new THREE.Uniform(baseParticlesTexture)
+    //传递初始位置纹�?    gpgpu.particlesVariable.material.uniforms.uBase = new THREE.Uniform(baseParticlesTexture)
 
     gpgpu.computation.init()
 
@@ -151,7 +144,7 @@
         fragmentShader:fragmentShader,
         uniforms:{
             uSize: new THREE.Uniform(0.1),
-            uResolution: new THREE.Uniform(new THREE.Vector2(sizes.value.width,sizes.value.height)),
+            uResolution: new THREE.Uniform(new THREE.Vector2(elementSize.value.width,elementSize.value.height)),
             uParticlesTexture: new THREE.Uniform()
         }
     })
@@ -178,33 +171,8 @@
       .step(0.1)
       .name('流动强度')
     
-    // 处理窗口大小变化
-    const handleResize = () => {
-      updateSize();
-      
-        // 更新canvas元素尺寸
-      if (canvas) {
-        canvas.style.width = `${sizes.value.width}px`;
-        canvas.style.height = `${sizes.value.height}px`;
-      }
-      
-      // 更新相机和渲染器
-      camera.aspect = sizes.value.width / sizes.value.height;
-      camera.updateProjectionMatrix();
-
-      renderer.setSize(sizes.value.width, sizes.value.height)
-      
-      particles.material.uniforms.uResolution.value.set(sizes.value.width,sizes.value.height)
-    };
-    
-    // 监听窗口大小变化
-    window.addEventListener('resize', handleResize);
-    onBeforeUnmount(() => {
-      window.removeEventListener('resize', handleResize);
-    });
-  
     /**
-     * 帧更新(动画)
+     * 帧更�?动画)
      */
     const clock = new THREE.Clock();
     let previousTime = 0
@@ -258,13 +226,4 @@
     }
   });
   </script>
-  
-  <style scoped>
-  /* Canvas样式 */
-  .webgl_3 {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-  </style>
   

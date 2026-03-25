@@ -38,7 +38,7 @@ onUnmounted(() => {
 
 <style>
 .scrollbar {
-  width: 100vw;
+  width: 100%;
   height: 100vh;
 }
 
@@ -47,7 +47,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
-  background-color: rgb(1, 2, 4);
+  background: transparent;
+  overflow-x: hidden; /* 防止横向滚动 */
 }
 
 .text-section-left {

@@ -3,7 +3,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import naive from 'naive-ui';
 import router from './router';
-import './css/three-container.css';
+import './css/main.css';
 
 const app = createApp(App);
 const pinia = createPinia();

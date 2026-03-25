@@ -1,12 +1,12 @@
 <template>
-  <div class="three-container">
+  <div Ref="containerRef" class="three-container">
     <canvas class="webgl_2"></canvas>
   </div>
 </template>
 
-<script setup>
+<script lang="ts" setup>
 import { onMounted, onBeforeUnmount } from 'vue';
-import { useCanvasSize } from '../utils/ThreeCanvasSize';
+import { useElementSize } from '../utils/useElementSize';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -22,16 +22,18 @@ let threeModel=null
 let controls=null
 
 const initThree= ()=> {
-  // 使用画布尺寸组合函数
-  const { sizes, updateSize } = useCanvasSize('.three-container');
   
-  // 设置容器位置和尺寸
-  updateSize();
+  // 设置容器位置和尺�?
+  // updateSize();
   /**
    * 场景环境设置
    */
   //画布
   canvas = document.querySelector('canvas.webgl_2');
+
+  // 使用画布尺寸组合函数
+  const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
+  updateElementSize();
 
   // 场景
   scene = new THREE.Scene();
@@ -39,122 +41,95 @@ const initThree= ()=> {
    /**
    * 相机
    */
-   camera = new THREE.PerspectiveCamera(75, sizes.value.width / sizes.value.height, 0.1, 100);
-   camera.position.set(0.0 ,0.2, 0.0);
+   camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 100);
+   camera.position.set(0.0 ,0.2, 1);
    scene.add(camera);
    //相机控制
    controls = new OrbitControls(camera, canvas);
    
    controls.enableDamping = true;
 
-  // 相机组
-
-
-
-  /**
-   * 纹理
-   */
-  // 加载模型的材质文件
-  // threeModel = new GLTFLoader();
-  // threeModel.load(
-  //   'static/car_book/uploads_files_4638778_lowpoly_novle_(GLB).glb',
-  //   (gltf) => {
-  //     const model = gltf.scene;
-  //     model.position.set(0, 0.01, 0)
-      
-  //     // 加载纹理
-  //     const textureLoader = new THREE.TextureLoader();
-      
-  //     // 加载各种纹理
-  //     const baseColorTexture = textureLoader.load('static/car_book/sideHustle_novel_BaseColor.png');
-  //     const normalTexture = textureLoader.load('static/car_book/sideHustle_novel_Normal_GL.png');
-  //     const metallicTexture = textureLoader.load('static/car_book/sideHustle_novel_Metallic.png');
-  //     const roughnessTexture = textureLoader.load('static/car_book/sideHustle_novel_Roughness.png');
-  //     const ambientOcclusionTexture = textureLoader.load('static/carBook/sideHustle_novel_AmbientOcclusion.png');
-      
-  //     baseColorTexture.flipY = false;
-  //     normalTexture.flipY = false;
-  //     metallicTexture.flipY = false;
-  //     roughnessTexture.flipY = false;
-  //     ambientOcclusionTexture.flipY = false;
-
-      
-  //     // 遍历模型，为每个网格应用新材质
-  //     model.traverse((child) => {
-  //       if (child.isMesh) {
-  //         // 创建新的材质
-  //         const material = new THREE.MeshStandardMaterial({
-  //           map: baseColorTexture,
-  //           normalMap: normalTexture,
-  //           metalnessMap: metallicTexture,
-  //           roughnessMap: roughnessTexture,
-  //           aoMap: ambientOcclusionTexture,
-  //           metalness: 0.2,
-  //           roughness: 0.7,
-  //           side: THREE.DoubleSide
-  //         });
-          
-  //         // 检查是否有uv2属性，如果没有则创建一个
-  //         if (!child.geometry.attributes.uv2) {
-  //           child.geometry.setAttribute('uv2', new THREE.BufferAttribute(child.geometry.attributes.uv.array, 2));
-  //         }
-          
-  //         child.material = material;
-  //       }
-  //     });
-      
-  //     scene.add(model);
-  //   },
-  //   // (xhr) => {
-  //   //   console.log(xhr);
-  //   // },
-  //   (error) => {
-  //     console.log(error);
-  //   }
-  // );
+  // 相机�?
 
   /**
    * 地面
    */
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(10, 10),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide })
   );
   
   floor.rotation.x = -Math.PI / 2;
   scene.add(floor);
+
+  const textureLoader = new THREE.TextureLoader();
+
+  // 纹理映射表，根据网格名称匹配对应的纹�?
+  const textureMap = {
+    'Body': 'static/cool_man/textures/Wolf3D_Body.003_baseColor.png',
+    'Eye': 'static/cool_man/textures/Wolf3D_Eye.003_baseColor.jpeg',
+    'Glasses': 'static/cool_man/textures/Wolf3D_Glasses.003_baseColor.png',
+    'Hair': 'static/cool_man/textures/Wolf3D_Hair.003_baseColor.png',
+    'Outfit_Bottom': 'static/cool_man/textures/Wolf3D_Outfit_Bottom.003_baseColor.jpeg',
+    'Outfit_Footwear': 'static/cool_man/textures/Wolf3D_Outfit_Footwear.003_baseColor.jpeg',
+    'Outfit_Top': 'static/cool_man/textures/Wolf3D_Outfit_Top.003_baseColor.jpeg',
+    'Skin': 'static/cool_man/textures/Wolf3D_Skin.003_baseColor.jpeg',
+    'Teeth': 'static/cool_man/textures/Wolf3D_Teeth.003_baseColor.jpeg'
+  };
 
   /**
    * 模型
    */
   threeModel = new GLTFLoader();
   threeModel.load(
-    'static/ancient_books/ancient_books.gltf',
+    'static/cool_man/cool_man.gltf',
     (gltf) => {
       const model = gltf.scene;
       
       // 设置模型位置
-      model.position.set(0, 0.01, 0);
-      
-      // 模型已经包含材质信息，我们可以直接使用
-      // 遍历模型，可以根据需要进行额外的修改
+      model.position.set(0, 0, 0);
+
+      // 遍历模型，应用纹�?
       model.traverse((child) => {
         if (child.isMesh) {
-          // 确保材质可见性和正确设置
-          if (child.material) {
-            // 可以保留原始材质或根据需要修改
-            if (Array.isArray(child.material)) {
-              child.material.forEach(material => {
-                material.side = THREE.DoubleSide;
-              });
-            } else {
-              child.material.side = THREE.DoubleSide;
+          // 尝试根据网格名称匹配纹理
+          let texturePath = null;
+          for (const [key, path] of Object.entries(textureMap)) {
+            if (child.name.includes(key)) {
+              texturePath = path;
+              break;
             }
+          }
+
+          if (texturePath) {
+            // 加载并应用纹�?
+            const texture = textureLoader.load(texturePath);
+            texture.flipY = false;
+            texture.colorSpace = THREE.SRGBColorSpace;
+
+            if (Array.isArray(child.material)) {
+              // 处理材质数组
+              child.material.forEach((material) => {
+                material.map = texture;
+                material.side = THREE.DoubleSide;
+                material.needsUpdate = true;
+              });
+            } else if (child.material) {
+              // 处理单个材质
+              child.material.map = texture;
+              child.material.side = THREE.DoubleSide;
+              child.material.needsUpdate = true;
+            }
+
+            console.log(`为网�?${child.name} 应用纹理: ${texturePath}`);
+          } else {
+            console.log(`未找到网�?${child.name} 对应的纹理`);
           }
         }
       });
 
       scene.add(model);
+      console.log('cool_man模型加载成功，纹理已应用');
     },
     (xhr) => {
       console.log(`加载进度: ${Math.round(xhr.loaded / xhr.total * 100)}%`);
@@ -169,39 +144,23 @@ const initThree= ()=> {
   /**
    * 光照
    */
-  // 环境光
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  // 环境�?
+  const ambientLight = new THREE.AmbientLight(0xffffff, 2);
   scene.add(ambientLight);
 
-  // 点光源
-  const pointLight = new THREE.PointLight(0xffffff, 3);
-  pointLight.position.set(0, 1, 0);
-  scene.add(pointLight);
+  // 点光�?
+  // const pointLight = new THREE.PointLight(0xffffff, 3);
+  // pointLight.position.set(0, 1, 0);
+  // scene.add(pointLight);
 
-  // 渲染器
+  // 渲染�?
   renderer = new THREE.WebGLRenderer({ canvas });
-  renderer.setSize(sizes.value.width, sizes.value.height);
+  renderer.setSize(elementSize.value.width, elementSize.value.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(0x000000); // 设置背景颜色为黑色
+  renderer.setClearColor(0x000000); // 设置背景颜色为黑�?
   
-  // 处理窗口大小变化
-  const handleResize = () => {
-    updateSize();
-    
-    // 更新相机
-    camera.aspect = sizes.value.width / sizes.value.height;
-    camera.updateProjectionMatrix();
-    
-    // 更新渲染器
-    renderer.setSize(sizes.value.width, sizes.value.height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  };
-  
-  // 监听窗口大小变化
-  window.addEventListener('resize', handleResize);
-  onBeforeUnmount(() => {
-    window.removeEventListener('resize', handleResize);
-  });
+  // 绑定响应式尺寸更�?
+  bindRenderer(renderer, camera);
 
   const clock = new THREE.Clock();
   const tick = () => {
@@ -245,9 +204,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Canvas样式 */
-.webgl_2 {
-  display: block;
+.three-container {
   width: 100%;
   height: 100%;
 }
