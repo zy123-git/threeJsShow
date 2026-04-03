@@ -1,227 +1,393 @@
 <template>
   <div class="home-container">
-    <h1 class="home-title">欢迎来到3D可视化世界</h1>
-    <p class="home-subtitle">选择您想要探索的场景</p>
+    <!-- 英雄区域 - 使用玻璃拟态卡片 -->
+    <el-card class="hero-card" shadow="never">
+      <div class="hero-content">
+        <el-avatar 
+          :size="80" 
+          class="hero-icon"
+          :style="{ background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))' }"
+        >
+          <el-icon :size="40"><View /></el-icon>
+        </el-avatar>
+        <h1 class="home-title gradient-text-bold">欢迎来到3D可视化世界</h1>
+        <p class="home-subtitle gradient-text">选择您想要探索的场景，开启沉浸式视觉之旅</p>
+        <el-button 
+          type="primary" 
+          size="large" 
+          round 
+          class="cta-button"
+          @click="scrollToGrid"
+        >
+          <el-icon><ArrowDown /></el-icon>
+          开始探索
+        </el-button>
+      </div>
+    </el-card>
 
-    <div class="navigation-grid">
-      <router-link to="/html-galaxy" class="nav-card">
-        <div class="card-icon">🌠</div>
-        <h3>星系</h3>
-        <p>星系效果,轻量级动画展示</p>
-      </router-link>
+    <!-- 场景网格 - 使用Element Plus的el-row和el-col -->
+    <div ref="gridRef" class="scenes-section">
+      <el-divider content-position="center">
+        <span class="section-title gradient-text-medium">✨ 探索场景</span>
+      </el-divider>
 
-      <router-link to="/html-scroll" class="nav-card">
-        <div class="card-icon">📜</div>
-        <h3>滚动特效</h3>
-        <p>文字滚动动画效果，渐变色彩与流畅过渡</p>
-      </router-link>
-
-      <router-link to="/html-model" class="nav-card">
-        <div class="card-icon">🖼️</div>
-        <h3>3D模型</h3>
-        <p>Three.js 实现的3D模型展示</p>
-      </router-link>
-
-      <router-link to="/html-wobbly-sphere" class="nav-card">
-        <div class="card-icon">🌍</div>
-        <h3>可变形球体</h3>
-        <p>可变形球体效果，自定义着色器实现</p>
-      </router-link>
-
-      <router-link to="/html-sea" class="nav-card">
-        <div class="card-icon">🌊</div>
-        <h3>海洋</h3>
-        <p>海浪模拟，动态水面效果</p>
-      </router-link>
-
-      <router-link to="/html-forest" class="nav-card">
-        <div class="card-icon">🌲</div>
-        <h3>森林</h3>
-        <p>森林效果，动态环境模拟</p>
-      </router-link>
-
-      <router-link to="/html-fireworks" class="nav-card">
-        <div class="card-icon">🎆</div>
-        <h3>烟花</h3>
-        <p>烟花效果，动态环境模拟</p>
-      </router-link>
-      
-      <router-link to="/html-classroom" class="nav-card">
-        <div class="card-icon">🏫</div>
-        <h3>教室</h3>
-        <p>3D教室模型展示，可交互查看</p>
-      </router-link>
-      
-      <router-link to="/html-particles" class="nav-card">
-        <div class="card-icon">✨</div>
-        <h3>粒子特效</h3>
-        <p>粒子特效展示，动态环境模拟</p>
-      </router-link>
-      
-      <router-link to="/html-flow-particles" class="nav-card">
-        <div class="card-icon">✨</div>
-        <h3>流动粒子特效</h3>
-        <p>流动粒子特效展示，动态环境模拟</p>
-      </router-link>
-      
-      <router-link to="/html-morph-particles" class="nav-card">
-        <div class="card-icon">✨</div>
-        <h3>变形粒子特效</h3>
-        <p>变形粒子特效展示，动态环境模拟</p>
-      </router-link>
+      <el-row :gutter="24" class="scenes-grid">
+        <el-col 
+          v-for="(scene, index) in scenes" 
+          :key="index"
+          :xs="24" 
+          :sm="12" 
+          :md="8" 
+          :lg="6"
+          class="scene-col"
+        >
+          <el-card 
+            class="scene-card glass-card" 
+            shadow="hover"
+            :body-style="{ padding: '0' }"
+          >
+            <div class="scene-image-wrapper">
+              <div class="scene-icon">{{ scene.icon }}</div>
+              <div class="scene-overlay">
+                <el-button 
+                  type="primary" 
+                  round
+                  class="enter-button"
+                  @click="$router.push(scene.path)"
+                >
+                  <el-icon><ArrowRight /></el-icon>
+                  进入场景
+                </el-button>
+              </div>
+            </div>
+            <div class="scene-content">
+              <h3 class="scene-title gradient-text-medium">{{ scene.title }}</h3>
+              <p class="scene-desc gradient-text">{{ scene.description }}</p>
+              <div class="scene-tags">
+                <el-tag 
+                  v-for="(tag, tagIndex) in scene.tags" 
+                  :key="tagIndex"
+                  size="small"
+                  effect="light"
+                  class="scene-tag"
+                >
+                  {{ tag }}
+                </el-tag>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
     </div>
 
-    <div class="footer">
-      <p>点击任意卡片开始探索 →</p>
-    </div>
+    <!-- 页脚 - 使用玻璃拟态风格 -->
+    <el-card class="footer-card" shadow="never">
+      <div class="footer-content">
+        <el-icon :size="20"><InfoFilled /></el-icon>
+        <span class="gradient-text">点击任意卡片开始探索 →</span>
+      </div>
+    </el-card>
   </div>
 </template>
 
 <script setup>
-// 使用Composition API，但当前页面不需要额外逻辑
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { View, ArrowDown, ArrowRight, InfoFilled } from '@element-plus/icons-vue';
+
+const router = useRouter();
+const gridRef = ref(null);
+
+const scrollToGrid = () => {
+  gridRef.value?.scrollIntoView({ behavior: 'smooth' });
+};
+
+// 场景数据
+const scenes = [
+  {
+    icon: '🌠',
+    title: '星系',
+    description: '星系效果，轻量级动画展示',
+    path: '/html-galaxy',
+    tags: ['粒子', '动画']
+  },
+  {
+    icon: '📜',
+    title: '滚动特效',
+    description: '文字滚动动画效果，渐变色彩与流畅过渡',
+    path: '/html-scroll',
+    tags: ['文字', '滚动']
+  },
+  {
+    icon: '🖼️',
+    title: '3D模型',
+    description: 'Three.js 实现的3D模型展示',
+    path: '/html-model',
+    tags: ['3D', '模型']
+  },
+  {
+    icon: '🌍',
+    title: '可变形球体',
+    description: '可变形球体效果，自定义着色器实现',
+    path: '/html-wobbly-sphere',
+    tags: ['着色器', '变形']
+  },
+  {
+    icon: '🌊',
+    title: '海洋',
+    description: '海浪模拟，动态水面效果',
+    path: '/html-sea',
+    tags: ['水面', '物理']
+  },
+  {
+    icon: '🌲',
+    title: '森林',
+    description: '森林效果，动态环境模拟',
+    path: '/html-forest',
+    tags: ['自然', '环境']
+  },
+  {
+    icon: '🎆',
+    title: '烟花',
+    description: '烟花效果，动态环境模拟',
+    path: '/html-fireworks',
+    tags: ['粒子', '特效']
+  },
+  {
+    icon: '🏫',
+    title: '教室',
+    description: '3D教室模型展示，可交互查看',
+    path: '/html-classroom',
+    tags: ['室内', '交互']
+  },
+  {
+    icon: '✨',
+    title: '粒子特效',
+    description: '粒子特效展示，动态环境模拟',
+    path: '/html-particles',
+    tags: ['粒子', '特效']
+  },
+  {
+    icon: '💫',
+    title: '流动粒子',
+    description: '流动粒子特效展示，动态环境模拟',
+    path: '/html-flow-particles',
+    tags: ['流动', '粒子']
+  },
+  {
+    icon: '🔄',
+    title: '变形粒子',
+    description: '变形粒子特效展示，动态环境模拟',
+    path: '/html-morph-particles',
+    tags: ['变形', '粒子']
+  }
+];
 </script>
 
 <style scoped>
 .home-container {
   min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
+/* 英雄区域 */
+.hero-card {
+  background: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 24px !important;
+  margin-bottom: 3rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+}
+
+.hero-content {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  color: white;
-  padding: 2rem;
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.hero-icon {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .home-title {
-  font-size: 3.5rem;
+  font-size: 3rem;
   font-weight: bold;
   margin-bottom: 1rem;
-  background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-align: center;
 }
 
 .home-subtitle {
-  font-size: 1.5rem;
-  margin-bottom: 3rem;
-  color: #a8a8a8;
-  text-align: center;
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
 }
 
-.navigation-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  max-width: 1500px;
-  width: 100%;
-  max-height: 800px;
-  overflow-y: auto;
-  margin-bottom: 3rem;
-  padding-right: 0.5rem;
-}
-
-/* 自定义滚动条样式 */
-.navigation-grid::-webkit-scrollbar {
-  width: 8px;
-}
-
-.navigation-grid::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.navigation-grid::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-}
-
-.navigation-grid::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.nav-card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
-  padding: 2rem;
-  text-align: center;
-  text-decoration: none;
-  color: white;
+.cta-button {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7)) !important;
+  border: none !important;
+  color: var(--primary-color) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
-  cursor: pointer;
 }
 
-.nav-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  background: rgba(255, 255, 255, 0.2);
+.cta-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 }
 
-.card-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+/* 场景区域 */
+.scenes-section {
+  margin-bottom: 3rem;
 }
 
-.nav-card h3 {
+.section-title {
   font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  color: #fff;
+  font-weight: 600;
 }
 
-.nav-card p {
-  font-size: 1rem;
-  color: #b0b0b0;
+.scenes-grid {
+  margin-top: 2rem;
+}
+
+.scene-col {
+  margin-bottom: 1.5rem;
+}
+
+/* 玻璃拟态卡片 */
+.glass-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 20px !important;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.glass-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+.scene-image-wrapper {
+  position: relative;
+  height: 160px;
+  background: linear-gradient(135deg, rgba(var(--primary-color), 0.1), rgba(var(--secondary-color), 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.scene-icon {
+  font-size: 4rem;
+  transition: transform 0.4s ease;
+}
+
+.glass-card:hover .scene-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.scene-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.glass-card:hover .scene-overlay {
+  opacity: 0.95;
+}
+
+.enter-button {
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.3s ease 0.1s;
+  background: white !important;
+  color: var(--primary-color) !important;
+  border: none !important;
+}
+
+.glass-card:hover .enter-button {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.scene-content {
+  padding: 1.5rem;
+}
+
+.scene-title {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.scene-desc {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
   line-height: 1.5;
 }
 
-.footer {
-  margin-top: 2rem;
-  text-align: center;
-  color: #888;
+.scene-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.back-button {
-  position: fixed;
-  top: 1.5rem;
-  left: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.15);
+.scene-tag {
+  background: linear-gradient(135deg, rgba(var(--primary-color), 0.1), rgba(var(--secondary-color), 0.1)) !important;
+  border: none !important;
+  color: var(--primary-color) !important;
+}
+
+/* 页脚 */
+.footer-card {
+  background: rgba(255, 255, 255, 0.1) !important;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  text-align: center;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
   color: white;
-  text-decoration: none;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  z-index: 1000;
 }
 
-.back-button:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
+/* 响应式 */
 @media (max-width: 768px) {
+  .home-container {
+    padding: 1rem;
+  }
+
   .home-title {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
 
   .home-subtitle {
-    font-size: 1.2rem;
+    font-size: 1rem;
   }
 
-  .navigation-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+  .hero-content {
+    padding: 2rem 1rem;
   }
 
-  .nav-card {
-    padding: 1.5rem;
+  .scene-col {
+    margin-bottom: 1rem;
   }
 }
 </style>
