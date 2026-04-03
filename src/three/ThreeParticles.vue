@@ -50,7 +50,7 @@ const initThreeScene = () => {
   // 绑定响应式尺寸更新
   bindRenderer(renderer, camera);
 
-  const displacement = { 
+  let displacement = { 
     canvas: null, 
     context: null, 
     glowImage: null,
@@ -58,6 +58,8 @@ const initThreeScene = () => {
     raycaster: null,
     screenCursor: null,
     canvasCursor: null,
+    canvasCursorPrevious: null,
+    texture: null,
   };
 
   //2D 画布
@@ -69,8 +71,8 @@ const initThreeScene = () => {
   displacement.canvas.style.position = 'absolute';
   displacement.canvas.style.top = '0';
   displacement.canvas.style.right = '0';
-  displacement.canvas.style.width = '512px';
-  displacement.canvas.style.height = '512px';
+  displacement.canvas.style.width = '256px';
+  displacement.canvas.style.height = '256px';
   displacement.canvas.style.zIndex = '10';
   displacement.canvas.style.pointerEvents = 'none'; // allow pointer events to pass through
   const threeContainerEl = document.querySelector('.three-container');
@@ -85,28 +87,69 @@ const initThreeScene = () => {
   displacement.context.fillRect(0, 0, displacement.canvas.width, displacement.canvas.height)
 
   displacement.glowImage = new Image()
-  displacement.glowImage.src = '/static/particle_icon/icon_01.png'
+  displacement.glowImage.src = 'static/forParticles/glow.jpeg'
 
   // 射线投射器
   displacement.raycaster = new THREE.Raycaster()
 
   displacement.screenCursor = new THREE.Vector2(9999,9999)
   displacement.canvasCursor = new THREE.Vector2(9999,9999)
+  displacement.canvasCursorPrevious = new THREE.Vector2(9999,9999)
 
   window.addEventListener('pointermove',(event) =>
   {
-    displacement.screenCursor.x = (event.clientX / elementSize.value.width) * 2 - 1
-    displacement.screenCursor.y = -((event.clientY - 0) / elementSize.value.height) * 2 + 1
+    displacement.screenCursor.x = ((event.clientX-260) / (elementSize.value.width)) * 2 - 1
+    displacement.screenCursor.y = -((event.clientY) / elementSize.value.height) * 2 + 1
   })
 
+  //轨迹纹理
+  displacement.texture = new THREE.CanvasTexture(displacement.canvas)
+
+  //用于射线投影的平面
   displacement.interactivePlane = new THREE.Mesh(
     new THREE.PlaneGeometry(40,40),
     new THREE.MeshBasicMaterial({color:'red'})
   );
+  displacement.interactivePlane.visible=false
   scene.add(displacement.interactivePlane);
 
-  // 创建粒子系统
-  createParticleSystem();
+  // 创建粒子系统，细分平面，在顶点上生成粒子
+  particleGeometry = new THREE.PlaneGeometry(40, 40, 128, 128);
+  //3js默认设置索引导致glsl绘制了更多的粒子
+  particleGeometry.setIndex(null)
+  //将平面的法线信息去掉，减少向gpu发送的信息
+  particleGeometry.deleteAttribute('normal')
+
+  //为粒子偏移创建随机值
+  const intensitiesArray = new Float32Array(particleGeometry.attributes.position.count)
+  const anglesArray = new Float32Array(particleGeometry.attributes.position.count)
+  for(let i = 0; i < particleGeometry.attributes.position.count; i++){
+    intensitiesArray[i] = Math.random()
+    anglesArray[i] = Math.random() * Math.PI * 2
+  }
+
+  //glsl是每个粒子都要执行的文件，因此对于单个顶点用aIntensity单数形式
+  particleGeometry.setAttribute('aIntensity', new THREE.BufferAttribute(intensitiesArray, 1))
+  particleGeometry.setAttribute('aAngle', new THREE.BufferAttribute(anglesArray, 1))
+
+  const textureLoader = new THREE.TextureLoader();
+
+  particleMaterial = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,
+    fragmentShader: fragmentShader,
+    depthTest: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      uResolution: new THREE.Uniform(new THREE.Vector2(elementSize.value.width * window.devicePixelRatio, 
+      elementSize.value.height * window.devicePixelRatio)),
+      uPictureTexture: new THREE.Uniform(textureLoader.load('/static/forParticles/desert.jpg')),
+      uDisplacementTexture: new THREE.Uniform(displacement.texture),
+    },
+  });
+
+  particles = new THREE.Points(particleGeometry, particleMaterial);
+  
+  scene.add(particles);
   
   // 添加环境光
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -132,11 +175,24 @@ const initThreeScene = () => {
       displacement.canvasCursor.x = uv.x * displacement.canvas.width
       displacement.canvasCursor.y = (1-uv.y) * displacement.canvas.height
 
-      console.log("displacement.canvasCursor:",displacement.canvasCursor)
     }
 
+    //轨迹变淡操作前，将globalCompositeOperation状态恢复为默认值
+    displacement.context.globalCompositeOperation = 'source-over'
+    //globalAlpha=0.1状态下绘制的图形不透明度为0.1
+    displacement.context.globalAlpha=0.02
+    //绘制新的光晕前用很淡的黑色矩形填充画布达到轨迹淡化的效果
+    displacement.context.fillRect(0,0,displacement.canvas.width,displacement.canvas.height)
+
+    //检测鼠标移动
+    const cursorDistance = displacement.canvasCursorPrevious.distanceTo(displacement.canvasCursor)
+    displacement.canvasCursorPrevious.copy(displacement.canvasCursor)
+    const alpha = Math.min(cursorDistance * 0.1, 1);
+
+    //绘制当前帧的光晕
     const glowSize = displacement.canvas.width * 0.25;
-    displacement.context.globalCompositeOperation = 'lightn'
+    displacement.context.globalCompositeOperation = 'lighten'
+    displacement.context.globalAlpha = alpha
     displacement.context.drawImage(
       displacement.glowImage,
       displacement.canvasCursor.x - glowSize * 0.5,
@@ -145,36 +201,13 @@ const initThreeScene = () => {
       glowSize
     )
 
+    displacement.texture.needsUpdate = true
+
     renderer.render(scene, camera);
     animationId = window.requestAnimationFrame(tick);
   }
   tick()
 };
-
-// 创建粒子系统
-  const createParticleSystem = () => {
-    if (!scene) return;
-
-    particleGeometry = new THREE.PlaneGeometry(40, 40, 256, 256);
-
-    const textureLoader = new THREE.TextureLoader();
-
-    particleMaterial = new THREE.ShaderMaterial({
-      vertexShader: vertexShader,
-      fragmentShader: fragmentShader,
-      depthTest: false,
-      blending: THREE.AdditiveBlending,
-      uniforms: {
-        uResolution: new THREE.Uniform(new THREE.Vector2(elementSize.value.width * window.devicePixelRatio, 
-        elementSize.value.height * window.devicePixelRatio)),
-        uPictureTexture: new THREE.Uniform(textureLoader.load('/static/pictures_png/picture_1.png')),
-      },
-    });
-
-    particles = new THREE.Points(particleGeometry, particleMaterial);
-    
-    scene.add(particles);
-  };
 
 // 组件挂载时初始化
 onMounted(async () => {

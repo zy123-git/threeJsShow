@@ -90,7 +90,8 @@
     gpgpu.particlesVariable.material.uniforms.uDeltaTime = new THREE.Uniform(0)
     gpgpu.particlesVariable.material.uniforms.uFlowFeildInfluence = new THREE.Uniform(0.5)
     gpgpu.particlesVariable.material.uniforms.uFlowStrength = new THREE.Uniform(1.5)
-    //传递初始位置纹�?    gpgpu.particlesVariable.material.uniforms.uBase = new THREE.Uniform(baseParticlesTexture)
+    //传递初始位置纹理   
+    gpgpu.particlesVariable.material.uniforms.uBase = new THREE.Uniform(baseParticlesTexture)
 
     gpgpu.computation.init()
 
