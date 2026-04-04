@@ -1,93 +1,100 @@
 <template>
-  <div class="home-container">
-    <!-- 英雄区域 - 使用玻璃拟态卡片 -->
-    <el-card class="hero-card" shadow="never">
-      <div class="hero-content">
-        <el-avatar 
-          :size="80" 
-          class="hero-icon"
-          :style="{ background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))' }"
-        >
-          <el-icon :size="40"><View /></el-icon>
-        </el-avatar>
-        <h1 class="home-title gradient-text-bold">欢迎来到3D可视化世界</h1>
-        <p class="home-subtitle gradient-text">选择您想要探索的场景，开启沉浸式视觉之旅</p>
-        <el-button 
-          type="primary" 
-          size="large" 
-          round 
-          class="cta-button"
-          @click="scrollToGrid"
-        >
-          <el-icon><ArrowDown /></el-icon>
-          开始探索
-        </el-button>
-      </div>
-    </el-card>
-
-    <!-- 场景网格 - 使用Element Plus的el-row和el-col -->
-    <div ref="gridRef" class="scenes-section">
-      <el-divider content-position="center">
-        <span class="section-title gradient-text-medium">✨ 探索场景</span>
-      </el-divider>
-
-      <el-row :gutter="24" class="scenes-grid">
-        <el-col 
-          v-for="(scene, index) in scenes" 
-          :key="index"
-          :xs="24" 
-          :sm="12" 
-          :md="8" 
-          :lg="6"
-          class="scene-col"
-        >
-          <el-card 
-            class="scene-card glass-card" 
-            shadow="hover"
-            :body-style="{ padding: '0' }"
+  <el-scrollbar class="home-scrollbar">
+    <div class="home-container">
+      <!-- 英雄区域 - 使用玻璃拟态卡片 -->
+      <el-card class="hero-card" shadow="never">
+        <div class="hero-content">
+          <el-avatar 
+            :size="80" 
+            class="hero-icon"
+            :style="{ background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))' }"
           >
-            <div class="scene-image-wrapper">
-              <div class="scene-icon">{{ scene.icon }}</div>
-              <div class="scene-overlay">
-                <el-button 
-                  type="primary" 
-                  round
-                  class="enter-button"
-                  @click="$router.push(scene.path)"
-                >
-                  <el-icon><ArrowRight /></el-icon>
-                  进入场景
-                </el-button>
+            <el-icon :size="40"><View /></el-icon>
+          </el-avatar>
+          <h1 class="home-title gradient-text-bold">欢迎来到3D可视化世界</h1>
+          <p class="home-subtitle gradient-text">选择您想要探索的场景，开启沉浸式视觉之旅</p>
+          <el-button 
+            type="primary" 
+            size="large" 
+            round 
+            class="cta-button"
+            @click="scrollToGrid"
+          >
+            <el-icon><ArrowDown /></el-icon>
+            开始探索
+          </el-button>
+        </div>
+      </el-card>
+
+      <!-- 场景网格 - 使用Element Plus的el-row和el-col -->
+      <div ref="gridRef" class="scenes-section">
+        <el-divider content-position="center">
+          <span class="section-title gradient-text-medium">✨ 探索场景</span>
+        </el-divider>
+
+        <el-row :gutter="24" class="scenes-grid">
+          <el-col 
+            v-for="(scene, index) in scenes" 
+            :key="index"
+            :xs="24" 
+            :sm="12" 
+            :md="8" 
+            :lg="6"
+            class="scene-col"
+          >
+            <el-card 
+              class="scene-card glass-card" 
+              shadow="hover"
+              :body-style="{ padding: '0' }"
+            >
+              <div class="scene-image-wrapper">
+                <div class="scene-icon">{{ scene.icon }}</div>
+                <div class="scene-overlay">
+                  <el-button 
+                    type="primary" 
+                    round
+                    class="enter-button"
+                    @click="$router.push(scene.path)"
+                  >
+                    <el-icon><ArrowRight /></el-icon>
+                    进入场景
+                  </el-button>
+                </div>
               </div>
-            </div>
-            <div class="scene-content">
-              <h3 class="scene-title gradient-text-medium">{{ scene.title }}</h3>
-              <p class="scene-desc gradient-text">{{ scene.description }}</p>
-              <div class="scene-tags">
-                <el-tag 
-                  v-for="(tag, tagIndex) in scene.tags" 
-                  :key="tagIndex"
-                  size="small"
-                  effect="light"
-                  class="scene-tag"
-                >
-                  {{ tag }}
-                </el-tag>
+              <div class="scene-content">
+                <h3 class="scene-title gradient-text-medium">{{ scene.title }}</h3>
+                <p class="scene-desc gradient-text">{{ scene.description }}</p>
+                <div class="scene-tags">
+                  <el-tag 
+                    v-for="(tag, tagIndex) in scene.tags" 
+                    :key="tagIndex"
+                    size="small"
+                    effect="light"
+                    class="scene-tag"
+                  >
+                    {{ tag }}
+                  </el-tag>
+                </div>
               </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+
+      <!-- 页脚 - 使用玻璃拟态风格 -->
+      <el-card class="footer-card" shadow="never">
+        <div class="footer-content">
+          <el-icon :size="20"><InfoFilled /></el-icon>
+          <span class="gradient-text">点击任意卡片开始探索 →</span>
+        </div>
+      </el-card>
     </div>
 
-    <!-- 页脚 - 使用玻璃拟态风格 -->
-    <el-card class="footer-card" shadow="never">
-      <div class="footer-content">
-        <el-icon :size="20"><InfoFilled /></el-icon>
-        <span class="gradient-text">点击任意卡片开始探索 →</span>
-      </div>
-    </el-card>
-  </div>
+    <!-- 回到顶部按钮 -->
+    <template #append>
+      <el-backtop target=".home-scrollbar .el-scrollbar__wrap" :bottom="100" />
+    </template>
+  </el-scrollbar>
 </template>
 
 <script setup>
@@ -185,6 +192,10 @@ const scenes = [
 </script>
 
 <style scoped>
+.home-scrollbar {
+  height: 100vh;
+}
+
 .home-container {
   min-height: 100vh;
   padding: 2rem;

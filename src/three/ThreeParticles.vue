@@ -114,7 +114,7 @@ const initThreeScene = () => {
   scene.add(displacement.interactivePlane);
 
   // 创建粒子系统，细分平面，在顶点上生成粒子
-  particleGeometry = new THREE.PlaneGeometry(40, 40, 128, 128);
+  particleGeometry = new THREE.PlaneGeometry(40, 40, 256, 256);
   //3js默认设置索引导致glsl绘制了更多的粒子
   particleGeometry.setIndex(null)
   //将平面的法线信息去掉，减少向gpu发送的信息
@@ -142,7 +142,7 @@ const initThreeScene = () => {
     uniforms: {
       uResolution: new THREE.Uniform(new THREE.Vector2(elementSize.value.width * window.devicePixelRatio, 
       elementSize.value.height * window.devicePixelRatio)),
-      uPictureTexture: new THREE.Uniform(textureLoader.load('/static/forParticles/desert.jpg')),
+      uPictureTexture: new THREE.Uniform(textureLoader.load('/static/forParticles/waves2.jpg')),
       uDisplacementTexture: new THREE.Uniform(displacement.texture),
     },
   });
@@ -150,15 +150,8 @@ const initThreeScene = () => {
   particles = new THREE.Points(particleGeometry, particleMaterial);
   
   scene.add(particles);
-  
-  // 添加环境光
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
-  
-  // 添加平行光
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-  directionalLight.position.set(1, 1, 1);
-  scene.add(directionalLight);
+
+  let frameCount = 0;
 
   const tick = () => {
     // 关键变量为空时不执行（组件已卸载）
@@ -177,12 +170,23 @@ const initThreeScene = () => {
 
     }
 
-    //轨迹变淡操作前，将globalCompositeOperation状态恢复为默认值
-    displacement.context.globalCompositeOperation = 'source-over'
-    //globalAlpha=0.1状态下绘制的图形不透明度为0.1
-    displacement.context.globalAlpha=0.02
-    //绘制新的光晕前用很淡的黑色矩形填充画布达到轨迹淡化的效果
-    displacement.context.fillRect(0,0,displacement.canvas.width,displacement.canvas.height)
+    // //轨迹变淡操作前，将globalCompositeOperation状态恢复为默认值
+    // displacement.context.globalCompositeOperation = 'source-over'
+    // //globalAlpha=0.1状态下绘制的图形不透明度为0.1
+    // displacement.context.globalAlpha=0.02
+    // //绘制新的光晕前用很淡的黑色矩形填充画布达到轨迹淡化的效果
+    // displacement.context.fillRect(0,0,displacement.canvas.width,displacement.canvas.height)
+
+    // 每两帧执行一次
+    frameCount++;
+    if (frameCount % 2 === 0) {
+      //轨迹变淡操作前，将globalCompositeOperation状态恢复为默认值
+      displacement.context.globalCompositeOperation = 'source-over'
+      //globalAlpha=0.1状态下绘制的图形不透明度为0.1
+      displacement.context.globalAlpha=0.02
+      //绘制新的光晕前用很淡的黑色矩形填充画布达到轨迹淡化的效果
+      displacement.context.fillRect(0,0,displacement.canvas.width,displacement.canvas.height)
+    }
 
     //检测鼠标移动
     const cursorDistance = displacement.canvasCursorPrevious.distanceTo(displacement.canvasCursor)
@@ -190,7 +194,7 @@ const initThreeScene = () => {
     const alpha = Math.min(cursorDistance * 0.1, 1);
 
     //绘制当前帧的光晕
-    const glowSize = displacement.canvas.width * 0.25;
+    const glowSize = displacement.canvas.width * 0.2;
     displacement.context.globalCompositeOperation = 'lighten'
     displacement.context.globalAlpha = alpha
     displacement.context.drawImage(
