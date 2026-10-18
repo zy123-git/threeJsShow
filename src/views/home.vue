@@ -161,6 +161,13 @@ const scenes = [
     tags: ['粒子', '特效']
   },
   {
+    icon: '🧊',
+    title: '基础场景',
+    description: '基础3D场景，包含立方体、灯光与轨道控制',
+    path: '/html-basic',
+    tags: ['3D', '基础']
+  },
+  {
     icon: '🏫',
     title: '教室',
     description: '3D教室模型展示，可交互查看',

@@ -5,6 +5,11 @@
 </template>
 
 <script setup lang="ts">
+/*下一步：
+1.通过PS扣出图片中的浪花部分，生成黑底或白底图
+2.将生成的图导入glsl，通过texture函数解析出浪花位置信息
+3.为代表浪花的粒子添加动态效果*/
+
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import * as THREE from 'three';
 import { useElementSize } from '../utils/useElementSize';
@@ -149,7 +154,14 @@ const initThreeScene = () => {
 
   particles = new THREE.Points(particleGeometry, particleMaterial);
   
-  scene.add(particles);
+  // scene.add(particles);
+
+  const aGeometry = new THREE.PlaneGeometry(10, 10 ,5 , 5)
+  const aMaterial = new THREE.PointsMaterial({
+    size: 1
+  })
+  const aPlane = new THREE.Points(aGeometry, aMaterial)
+  scene.add(aPlane)
 
   let frameCount = 0;
 

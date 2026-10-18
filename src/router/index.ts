@@ -43,6 +43,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/HTMLFireworks.vue'),
   },
   {
+    path: '/html-basic',
+    name: 'HTMLBasic',
+    component: () => import('../views/HTMLBasic.vue'),
+  },
+  {
     path: '/html-classroom',
     name: 'HTMLClassroom',
     component: () => import('../views/HTMLClassroom.vue'),
