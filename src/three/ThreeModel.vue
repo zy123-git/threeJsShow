@@ -10,6 +10,7 @@ import { useElementSize } from '../utils/useElementSize';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
 
 
 let canvas = null
@@ -26,6 +27,9 @@ let ring4: THREE.Object3D | null = null;
 let crossRing: THREE.Object3D | null = null;
 let coreRing: THREE.Object3D | null = null;
 let energyShield: THREE.Object3D | null = null;
+
+// 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
+const assetToken = beginAssetLoading();
 
 const initThree= ()=> {
 
@@ -135,6 +139,7 @@ const initThree= ()=> {
   gltfLoader.load(
     "static/classroom/deskChairMini.glb",
     (gltf) => {
+      endAssetLoading(assetToken);
       const model = gltf.scene;
 
       // 设置模型位置
@@ -145,6 +150,13 @@ const initThree= ()=> {
 
       scene.add(model);
       console.log('教室模型加载成功');
+    },
+    (xhr) => {
+      reportAssetProgress(assetToken, xhr.loaded, xhr.total);
+    },
+    (error) => {
+      endAssetLoading(assetToken);
+      console.error('教室模型加载失败:', error);
     }
   )
 

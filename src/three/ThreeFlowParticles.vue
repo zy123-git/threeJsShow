@@ -16,6 +16,7 @@
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { GLTFLoader } from 'three/examples/jsm/Addons.js';
   import { GPUComputationRenderer } from 'three/examples/jsm/Addons.js';
+  import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
 
   
   let canvas = null;
@@ -24,6 +25,9 @@
   let scene = null;
   let camera = null;
   let controls = null;
+
+  // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
+  const assetToken = beginAssetLoading();
 
   /**
    * 调试
@@ -59,7 +63,22 @@
     bindRenderer(renderer, camera)
 
     const gltfLoader = new GLTFLoader()
-    const gltf = await gltfLoader.loadAsync('static/mv_spartan/spartan.gltf')
+    const gltf = await new Promise((resolve, reject) => {
+      gltfLoader.load(
+        'static/mv_spartan/spartan.gltf',
+        (loadedGltf) => {
+          endAssetLoading(assetToken)
+          resolve(loadedGltf)
+        },
+        (xhr) => {
+          reportAssetProgress(assetToken, xhr.loaded, xhr.total)
+        },
+        (error) => {
+          endAssetLoading(assetToken)
+          reject(error)
+        }
+      )
+    })
 
     let baseGeometry = {}
     baseGeometry.geometry = gltf.scene.children[0].geometry

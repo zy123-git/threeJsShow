@@ -15,6 +15,7 @@ import { useElementSize } from '../utils/useElementSize';
 import vertexShader from '../shader/morphParticlesShader/vertexWithIncludes';
 import fragmentShader from '../shader/morphParticlesShader/fragment.glsl?raw';
 import { SimplexNoise } from 'three/examples/jsm/Addons.js';
+import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
 
 // Three.js核心对象
 let scene: THREE.Scene | null = null;
@@ -24,6 +25,9 @@ let canvas = null;
 let gui = null;
 let controls = null;
 let loader = null;
+
+// 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
+const assetToken = beginAssetLoading();
 
 
 
@@ -75,6 +79,7 @@ const initThreeScene = () => {
     loader.load(
         'static/particleModel/particlesModel.gltf',
         (gltf)=>{
+            endAssetLoading(assetToken);
             let maxGeometryCount=0
             gltf.scene.children.forEach(child => {
                 if(maxGeometryCount < child.geometry.attributes.position.count)
@@ -166,6 +171,13 @@ const initThreeScene = () => {
             gui.add(particles, 'morph3')
             gui.addColor(particles, 'mixColor1')
             gui.addColor(particles, 'mixColor2')
+        },
+        (xhr) => {
+            reportAssetProgress(assetToken, xhr.loaded, xhr.total)
+        },
+        (error) => {
+            endAssetLoading(assetToken)
+            console.error('粒子模型加载失败:', error)
         }
     )
 

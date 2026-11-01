@@ -17,6 +17,7 @@
   import { RGBELoader } from 'three/examples/jsm/Addons.js';
   import CustomShaderMaterial from 'three-custom-shader-material/vanilla'
   import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+  import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
 
 
   let canvas = null;
@@ -28,6 +29,9 @@
 
   let environmentMap = null
   let rgbeLoader = null
+
+  // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
+  const assetToken = beginAssetLoading();
   
 
   
@@ -78,10 +82,18 @@
     rgbeLoader = new RGBELoader() 
     rgbeLoader.load('static/environment_map/0/cedar_bridge_sunset_1_4k.hdr',(environmentMap)=>
     {
+      endAssetLoading(assetToken);
       environmentMap.mapping = THREE.EquirectangularReflectionMapping
 
       scene.environment = environmentMap
       scene.background = environmentMap
+    },
+    (xhr) => {
+      reportAssetProgress(assetToken, xhr.loaded, xhr.total);
+    },
+    (error) => {
+      endAssetLoading(assetToken);
+      console.error('环境贴图加载失败:', error);
     })
     scene.environmentIntensity = 0.1
     scene.backgroundIntensity = 0.1

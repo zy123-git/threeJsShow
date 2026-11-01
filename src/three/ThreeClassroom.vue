@@ -13,6 +13,7 @@ import { useElementSize } from '../utils/useElementSize';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
   import { ModelClickHandler } from '@/utils/threeModelClickHandler';
+  import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
   const modelClickHandler = new ModelClickHandler();
   const router = useRouter();
 
@@ -24,6 +25,10 @@ import { useElementSize } from '../utils/useElementSize';
   let controls = null;
   let classroomModel = null;
   let loader = null;
+
+  // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
+  const classroomAssetToken = beginAssetLoading();
+  const deskAssetToken = beginAssetLoading();
   
   /**
    * 调试
@@ -102,6 +107,7 @@ import { useElementSize } from '../utils/useElementSize';
           loader.load(
             'static/classroom/classroomMiniColor.gltf',
             (gltf) => {
+              endAssetLoading(classroomAssetToken);
               classroomModel = gltf.scene;
               console.log(classroomModel);
               // 调整模型大小和位�?
@@ -132,9 +138,10 @@ import { useElementSize } from '../utils/useElementSize';
               resolve(true);
             },
             (xhr) => {
-              // console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+              reportAssetProgress(classroomAssetToken, xhr.loaded, xhr.total);
             },
             (error) => {
+              endAssetLoading(classroomAssetToken);
               console.error('An error happened', error);
               reject(error);
             }
@@ -148,6 +155,7 @@ import { useElementSize } from '../utils/useElementSize';
           loader.load(
             'static/deskAndChair/deskAndChair.glb',
             (gltf) => {
+              endAssetLoading(deskAssetToken);
               const mesh = gltf.scene.children.find(child => child.isMesh);
               const geometry = mesh.geometry;
 
@@ -182,8 +190,11 @@ import { useElementSize } from '../utils/useElementSize';
               scene.add(instancedMesh);
               resolve(true);
             },
-            undefined,
+            (xhr) => {
+              reportAssetProgress(deskAssetToken, xhr.loaded, xhr.total);
+            },
             (error) => {
+              endAssetLoading(deskAssetToken);
               console.error('An error happened', error);
               reject(error);
             }

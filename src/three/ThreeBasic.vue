@@ -17,6 +17,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
+import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
 
 // ===== 全局变量 =====
 let scene = null;
@@ -42,6 +43,9 @@ let dirLight = null;
 let pointLight = null;
 // 模型基准缩放（4/maxDim），用户缩放在此基础上叠加
 let baseScale = 1;
+
+// 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
+const assetToken = beginAssetLoading();
 
 // ===== 视觉效果参数（由 lil-gui 绑定） =====
 const params = {
@@ -275,6 +279,7 @@ const loadHolographicModel = () => {
     loader.load(
       'static/holographicModel/1号直流变电柜.glb',
       (gltf) => {
+        endAssetLoading(assetToken);
         const model = gltf.scene;
 
         // 应用全息材质
@@ -308,8 +313,11 @@ const loadHolographicModel = () => {
 
         resolve({ model, topY });
       },
-      undefined,
+      (xhr) => {
+        reportAssetProgress(assetToken, xhr.loaded, xhr.total);
+      },
       (error) => {
+        endAssetLoading(assetToken);
         console.error('模型加载失败:', error);
         reject(error);
       }
