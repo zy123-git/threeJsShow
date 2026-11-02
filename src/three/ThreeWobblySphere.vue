@@ -20,9 +20,11 @@
   import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
 
 
+  const canvasRef = ref(null);
   let canvas = null;
   let gui = null;
   let renderer = null;
+  let animationId = null;
   let scene = null;
   let camera = null;
   let controls = null;
@@ -41,7 +43,7 @@
      * 场景环境设置
      */
     //画布
-    canvas = document.querySelector('.canvas_9')
+    canvas = canvasRef.value
 
     // 使用画布尺寸组合函数
     const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
@@ -309,7 +311,7 @@
       // 渲染
       renderer.render(scene, camera);
   
-      requestAnimationFrame(tick);
+      animationId = requestAnimationFrame(tick);
     };
   
     // 启动动画循环
@@ -326,10 +328,16 @@
       gui.destroy();
     }
   
-    // 清理Three.js资源
+    // 清理Three.js资源（取消循环 + 回收 WebGL 上下文）
+    if (animationId !== null) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
     if (renderer) {
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
+      renderer = null;
     }
     // 清理场景中的对象
     if (scene) {

@@ -1573,7 +1573,10 @@ onBeforeUnmount(() => {
   gradePass = null;
 
   try {
-    if (renderer) renderer.dispose();
+    if (renderer) {
+      renderer.dispose();
+      renderer.forceContextLoss();
+    }
   } catch (e) {}
   renderer = null;
   camera = null;

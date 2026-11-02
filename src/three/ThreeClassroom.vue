@@ -20,6 +20,7 @@ import { useElementSize } from '../utils/useElementSize';
   let canvas = null;
   let gui = null;
   let renderer = null;
+  let animationId = null;
   let scene = null;
   let camera = null;
   let controls = null;
@@ -227,7 +228,7 @@ import { useElementSize } from '../utils/useElementSize';
       renderer.render(scene, camera);
     
       // 继续调用 tick 函数
-      requestAnimationFrame(tick);
+      animationId = requestAnimationFrame(tick);
     };
   
     // 启动动画循环
@@ -247,9 +248,15 @@ import { useElementSize } from '../utils/useElementSize';
     }
   
     // 清理Three.js资源
+    if (animationId !== null) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
     if (renderer) {
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
+      renderer = null;
     }
     
     // 清理场景中的对象

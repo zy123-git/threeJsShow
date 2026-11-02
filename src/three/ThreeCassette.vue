@@ -29,6 +29,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useElementSize } from '../utils/useElementSize';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -52,8 +53,11 @@ import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../util
 const MODEL_URL = 'static/holographicModel/1号直流变电柜.glb';
 const FLOOR_Y = -1.45;
 
+const TECH_HDR_URL = 'static/hdrMap/metro_vijzelgracht_2k.hdr';
+
 // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
 const assetToken = beginAssetLoading();
+const techHdrToken = beginAssetLoading();
 
 let scene = null;
 let camera = null;
@@ -114,6 +118,8 @@ const params = {
   topIntensity: 0.48,
   shadowOn: true,
   shadowIntensity: 0.5,
+  softShadow: true,
+  shadowRadius: 7,
   hemiIntensity: 0.26,
   // 环境与材质
   envOn: true,
@@ -331,6 +337,37 @@ const buildEnvironment = (kind = 'studio') => {
   return texture;
 };
 
+/* 科技蓝模式光照：HDR 文件作为环境光照（不作为背景），异步替换 tech 环境 */
+const loadTechEnvironment = () => {
+  if (!pmrem) return;
+  new RGBELoader().load(
+    TECH_HDR_URL,
+    (texture) => {
+      if (!pmrem || !scene) {
+        texture.dispose();
+        return;
+      }
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      envTextures.tech = pmrem.fromEquirectangular(texture).texture;
+      texture.dispose();
+      console.log('[ThreeCassette] tech HDR 环境已加载');
+      // 若当前已处于科技蓝态，立即启用 HDR 环境
+      if (params.envOn && lookTechAmount >= 0.5) {
+        scene.environment = envTextures.tech;
+      }
+      endAssetLoading(techHdrToken);
+    },
+    (xhr) => {
+      if (xhr?.total) reportAssetProgress(techHdrToken, xhr.loaded, xhr.total);
+    },
+    (err) => {
+      console.warn('[ThreeCassette] tech HDR 加载失败，回退程序化环境:', err);
+      if (pmrem) envTextures.tech = buildEnvironment('tech');
+      endAssetLoading(techHdrToken);
+    }
+  );
+};
+
 /* ----------------------------- 灯光（柔光箱） --------------------------- */
 
 const createLights = () => {
@@ -366,7 +403,7 @@ const createLights = () => {
   Object.assign(dirShadow.shadow.camera, { left: -d, right: d, top: d, bottom: -d });
   dirShadow.shadow.bias = -0.0004;
   dirShadow.shadow.normalBias = 0.02;
-  dirShadow.shadow.radius = 7;
+  dirShadow.shadow.radius = params.shadowRadius;
   scene.add(dirShadow);
   scene.add(dirShadow.target);
 
@@ -1067,6 +1104,20 @@ const setupGUI = () => {
   fLight.add(params, 'shadowIntensity', 0, 2, 0.05).name('阴影光强度').onChange((v) => {
     if (dirShadow) dirShadow.intensity = v;
   });
+  fLight.add(params, 'softShadow').name('软阴影').onChange((v) => {
+    if (renderer) {
+      renderer.shadowMap.type = v ? THREE.PCFShadowMap : THREE.BasicShadowMap;
+    }
+    if (dirShadow) {
+      dirShadow.shadow.radius = v ? params.shadowRadius : 0;
+      dirShadow.shadow.needsUpdate = true;
+    }
+  });
+  fLight.add(params, 'shadowRadius', 0, 30, 0.5).name('阴影柔化半径').onChange((v) => {
+    if (!dirShadow) return;
+    dirShadow.shadow.radius = v;
+    dirShadow.shadow.needsUpdate = true;
+  });
   fLight.add(params, 'hemiIntensity', 0, 1.5, 0.02).name('半球补光').onChange((v) => {
     if (hemiLight) hemiLight.intensity = v;
   });
@@ -1214,18 +1265,18 @@ const init = () => {
   renderer.setSize(elementSize.value.width, elementSize.value.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = TONE_MAPPINGS[params.toneMapping];
   renderer.toneMappingExposure = params.exposure;
 
   bindRenderer(renderer, camera);
 
-  // 环境贴图（柔和反射）：两套 PMREM 一次烘焙，切换时按过渡中点替换
+  // 环境贴图（柔和反射）：studio 程序化 PMREM，tech 用 HDR 文件；切换时按过渡中点替换
   pmrem = new THREE.PMREMGenerator(renderer);
   envTextures.studio = buildEnvironment('studio');
-  envTextures.tech = buildEnvironment('tech');
   envTexture = envTextures.studio;   // 兼容旧引用
   scene.environment = params.envOn ? envTextures.studio : null;
+  loadTechEnvironment();
   scene.environmentIntensity = params.envIntensity;
 
   // 体积雾常驻但密度为 0：避免切换外观时重编译材质
@@ -1497,7 +1548,10 @@ onBeforeUnmount(() => {
   gradePass = null;
 
   try {
-    if (renderer) renderer.dispose();
+    if (renderer) {
+      renderer.dispose();
+      renderer.forceContextLoss();
+    }
   } catch (e) {}
   renderer = null;
   camera = null;

@@ -16,6 +16,7 @@
   let canvas = null;
   let gui = null;
   let renderer = null;
+  let animationId = null;
   let scene = null;
   let camera = null;
   let controls = null;
@@ -160,7 +161,7 @@ function createNoiseTexture(size) {
       renderer.render(scene, camera);
   
       // 继续调用 tick 函数
-      requestAnimationFrame(tick);
+      animationId = requestAnimationFrame(tick);
     };
   
     // 启动动画循环
@@ -180,9 +181,15 @@ function createNoiseTexture(size) {
     }
   
     // 清理Three.js资源
+    if (animationId !== null) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
     if (renderer) {
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
+      renderer = null;
     }
     // 清理场景中的对象
     if (scene) {

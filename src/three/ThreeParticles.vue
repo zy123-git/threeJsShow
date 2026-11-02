@@ -268,6 +268,7 @@ onUnmounted(() => {
       (renderer.domElement.parentNode as HTMLElement).removeChild(renderer.domElement);
     }
     renderer.dispose();
+    renderer.forceContextLoss();
     renderer = null;
   }
   

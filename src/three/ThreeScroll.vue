@@ -232,7 +232,9 @@ onBeforeUnmount(() => {
   // 清理Three.js资源
   if (renderer) {
     renderer.dispose();
+    renderer.forceContextLoss();
     renderer.domElement.remove();
+    renderer = null;
   }
 
   if (animationId) {

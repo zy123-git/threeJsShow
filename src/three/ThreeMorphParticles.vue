@@ -1,11 +1,11 @@
 <template>
   <div class="three-container">
-    <canvas class="canvas_9"></canvas>
+    <canvas ref="canvasRef" class="canvas_9"></canvas>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, nextTick } from 'vue';
+import { onMounted, onUnmounted, nextTick, ref } from 'vue';
 import * as THREE from 'three';
 import gsap from 'gsap'
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -18,9 +18,11 @@ import { SimplexNoise } from 'three/examples/jsm/Addons.js';
 import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
 
 // Three.js核心对象
+const canvasRef = ref(null);
 let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let renderer: THREE.WebGLRenderer | null = null;
+let animationId: number | null = null;
 let canvas = null;
 let gui = null;
 let controls = null;
@@ -33,7 +35,7 @@ const assetToken = beginAssetLoading();
 
 // 初始化Three.js场景
 const initThreeScene = () => {
-  canvas = document.querySelector('canvas.canvas_9')
+  canvas = canvasRef.value
 
   // 使用画布尺寸组合函数
   const { elementSize, updateElementSize, bindRenderer } = useElementSize(".three-container");
@@ -185,7 +187,7 @@ const initThreeScene = () => {
 
     if (renderer && scene && camera) {
       renderer.render(scene, camera);
-      window.requestAnimationFrame(tick);
+      animationId = window.requestAnimationFrame(tick);
     }
   }
   tick()
@@ -223,11 +225,16 @@ onUnmounted(() => {
   }
   
   // 清理渲染�?
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
   if (renderer) {
     if (renderer.domElement && renderer.domElement.parentNode) {
       (renderer.domElement.parentNode as HTMLElement).removeChild(renderer.domElement);
     }
     renderer.dispose();
+    renderer.forceContextLoss();
     renderer = null;
   }
   
