@@ -5,27 +5,23 @@
 </template>
   
 <script setup>
-  import { onMounted, onBeforeUnmount, render } from 'vue';
-  import { useElementSize } from '../utils/useElementSize';
+  import { onBeforeUnmount } from 'vue';
 
   import * as THREE from 'three';
   import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
   import vertexShader from '@/shader/flowParticlesShader/vertex.glsl?raw';
   import fragmentShader from '@/shader/flowParticlesShader/fragment.glsl?raw';
   import gpgpuShader from '@/shader/flowParticlesShader/gpgpuWithIncludes';
-  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { GLTFLoader } from 'three/examples/jsm/Addons.js';
   import { GPUComputationRenderer } from 'three/examples/jsm/Addons.js';
   import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
+  import { useGui } from './shared/gui';
+  import { useThreeScene } from './shared/useThreeScene';
 
-  
-  let canvas = null;
-  let gui = null;
-  let renderer = null;
-  let animationId = null;
   let scene = null;
   let camera = null;
-  let controls = null;
+  let renderer = null;
+  let renderFrame = null;
 
   // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
   const assetToken = beginAssetLoading();
@@ -33,35 +29,17 @@
   /**
    * 调试
    */
-  // 初始化dat.GUI
-  gui = new GUI();
+  // 初始化dat.GUI（useGui 会在组件卸载时自动销毁）
+  const gui = useGui(() => new GUI());
 
-  
-  const initThree = async () => {
-    // 使用画布尺寸组合函数
-    const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
-    updateElementSize();
-  
+  const initThree = async (ctx) => {
+    ({ scene, camera, renderer } = ctx);
+    const { elementSize } = ctx;
+
     /**
      * 场景环境设置
      */
-    //画布
-    canvas = document.querySelector('.canvas_12')
-    // 场景
-    scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
-
-    
-    // 创建相机
-    camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 1000);
-    camera.position.z = 15; // 调整相机位置以适应50*50小间距粒子矩�?
-    controls = new OrbitControls(camera,canvas)
-
-    //渲染器
-    renderer = new THREE.WebGLRenderer({ canvas });
-    renderer.setSize(elementSize.value.width, elementSize.value.height);
-    renderer.setClearColor(0x000000); // 设置背景颜色为黑�?
-    bindRenderer(renderer, camera)
 
     const gltfLoader = new GLTFLoader()
     const gltf = await new Promise((resolve, reject) => {
@@ -102,7 +80,6 @@
       baseParticlesTexture.image.data[i4 + 3] = Math.random()
     }
 
-    
     gpgpu.particlesVariable = gpgpu.computation.addVariable('uParticles', gpgpuShader, baseParticlesTexture)
     gpgpu.computation.setVariableDependencies(gpgpu.particlesVariable, [gpgpu.particlesVariable])
 
@@ -125,7 +102,6 @@
     gpgpu.debug.position.x = 3
     gpgpu.debug.visible = false
     scene.add(gpgpu.debug)
-
 
     let particles = {}
 
@@ -191,66 +167,34 @@
       .max(5)
       .step(0.1)
       .name('流动强度')
-    
-    /**
-     * 帧更�?动画)
-     */
-    const clock = new THREE.Clock();
-    let previousTime = 0
-    const tick = () => {
-      const elapsedTime = clock.getElapsedTime()
-      const deltaTime = elapsedTime - previousTime
-      previousTime = elapsedTime
 
+    /**
+     * 帧更新(动画)
+     */
+    renderFrame = ({ elapsed, delta }) => {
       //gpgpu更新
-      gpgpu.particlesVariable.material.uniforms.uTime.value = elapsedTime
-      gpgpu.particlesVariable.material.uniforms.uDeltaTime.value = deltaTime
+      gpgpu.particlesVariable.material.uniforms.uTime.value = elapsed
+      gpgpu.particlesVariable.material.uniforms.uDeltaTime.value = delta
       gpgpu.computation.compute()
       particles.material.uniforms.uParticlesTexture.value = gpgpu.computation.getCurrentRenderTarget(gpgpu.particlesVariable).texture
       
       // 渲染
       renderer.render(scene, camera);
-  
-      animationId = requestAnimationFrame(tick);
     };
-  
-    // 启动动画循环
-    tick();
   };
-  
-  onMounted(() => {
-    initThree();
+
+  const three = useThreeScene({
+    canvas: '.canvas_12',
+    camera: { fov: 75, near: 0.1, far: 1000, position: [0, 0, 15] },
+    controls: {},
+    renderer: { clearColor: 0x000000 },
+    onInit: (ctx) => initThree(ctx),
+    onFrame: (_ctx, frame) => renderFrame?.(frame),
   });
-  
+
   onBeforeUnmount(() => {
-    if (gui) {
-      gui.destroy();
-    }
-  
-    // 清理Three.js资源
-    if (animationId !== null) {
-      cancelAnimationFrame(animationId);
-      animationId = null;
-    }
-    if (renderer) {
-      renderer.dispose();
-      renderer.forceContextLoss();
-      renderer.domElement.remove();
-      renderer = null;
-    }
-    // 清理场景中的对象
-    if (scene) {
-      scene.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material) => material.dispose());
-          } else {
-            object.material.dispose();
-          }
-        }
-      });
-    }
+    // 组合式统一释放场景、控制器与渲染器
+    three.dispose();
   });
-  </script>
+</script>
   

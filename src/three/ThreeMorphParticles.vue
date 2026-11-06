@@ -5,61 +5,39 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, nextTick, ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import * as THREE from 'three';
 import gsap from 'gsap'
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/Addons.js';
-import { useElementSize } from '../utils/useElementSize';
+import { useThreeScene, type ThreeSceneContext } from './shared/useThreeScene';
 import vertexShader from '../shader/morphParticlesShader/vertexWithIncludes';
 import fragmentShader from '../shader/morphParticlesShader/fragment.glsl?raw';
 import { SimplexNoise } from 'three/examples/jsm/Addons.js';
 import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
+import { destroyGui } from './shared/gui';
 
 // Three.js核心对象
-const canvasRef = ref(null);
+const canvasRef = ref<HTMLCanvasElement | null>(null);
 let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let renderer: THREE.WebGLRenderer | null = null;
-let animationId: number | null = null;
-let canvas = null;
+let renderFrame: (() => void) | null = null;
 let gui = null;
-let controls = null;
 let loader = null;
 
 // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
 const assetToken = beginAssetLoading();
 
-
-
 // 初始化Three.js场景
-const initThreeScene = () => {
-  canvas = canvasRef.value
+const initThreeScene = (ctx: ThreeSceneContext) => {
+  ({ scene, camera, renderer } = ctx);
+  const { elementSize } = ctx;
 
-  // 使用画布尺寸组合函数
-  const { elementSize, updateElementSize, bindRenderer } = useElementSize(".three-container");
-  updateElementSize()
-
-  // 创建场景
-  scene = new THREE.Scene();
+  // 创建场景背景
   scene.background = new THREE.Color('#000000');
 
   gui = new GUI({width: 340});
-  
-  // 创建相机
-  camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 1000);
-  camera.position.z = 3; // 调整相机位置以适应50*50小间距粒子矩�?
-
-  controls = new OrbitControls(camera,canvas)
-  
-  // 创建渲染器
-  renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
-  renderer.setClearColor('#181818');
-  renderer.setSize(elementSize.value.width, elementSize.value.height, false); // false参数表示不更新DOM尺寸
-  
-  // 绑定响应式尺寸更新
-  bindRenderer(renderer, camera);
 
   const particles = {
     geometry: null,
@@ -183,70 +161,42 @@ const initThreeScene = () => {
         }
     )
 
-  const tick = () => {
-
+  /**
+   * 帧更新(动画)
+   */
+  renderFrame = () => {
     if (renderer && scene && camera) {
       renderer.render(scene, camera);
-      animationId = window.requestAnimationFrame(tick);
     }
   }
-  tick()
 };
 
-// 组件挂载时初始化
-onMounted(async () => {
-  // 等待DOM更新完成
-  await nextTick();
-  
-  // 初始化Three.js场景
-  initThreeScene();
+const three = useThreeScene({
+  canvas: canvasRef,
+  camera: { fov: 75, near: 0.1, far: 1000, position: [0, 0, 3] },
+  controls: {},
+  renderer: { alpha: true, clearColor: '#181818', updateStyle: false },
+  onInit: (ctx) => initThreeScene(ctx),
+  onFrame: () => renderFrame?.(),
 });
 
 // 组件卸载时清理资源
-onUnmounted(() => {
-  
-  // 释放Three.js资源
-  
+onBeforeUnmount(() => {
   // 清理GUI
   if (gui) {
-    // 尝试手动从DOM中移除gui元素
-    if (gui.domElement && gui.domElement.parentNode) {
-      gui.domElement.parentNode.removeChild(gui.domElement);
-    }
-    // 调用destroy方法
-    gui.destroy();
+    destroyGui(gui);
     gui = null;
   }
-  
-  // 清理控制�?
-  if (controls) {
-    controls.dispose();
-    controls = null;
-  }
-  
-  // 清理渲染�?
-  if (animationId !== null) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-  if (renderer) {
-    if (renderer.domElement && renderer.domElement.parentNode) {
-      (renderer.domElement.parentNode as HTMLElement).removeChild(renderer.domElement);
-    }
-    renderer.dispose();
-    renderer.forceContextLoss();
-    renderer = null;
-  }
-  
-  // 清理加载�?
+
+  // 清理加载器
   loader = null;
-  
-  // 清理画布引用
-  canvas = null;
-  
-  // 清理相机和场景引�?
+
+  // 清理相机和场景引用
   camera = null;
   scene = null;
+
+  // 组合式统一释放场景、控制器与渲染器
+  three.dispose();
 });
 </script>
 

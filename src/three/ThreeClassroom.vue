@@ -5,85 +5,60 @@
 </template>
   
 <script setup>
-  import { onMounted, onBeforeUnmount, ref } from 'vue';
-import { useElementSize } from '../utils/useElementSize';
+  import { onBeforeUnmount, ref } from 'vue';
   import { useRouter } from 'vue-router';
   import * as THREE from 'three';
   import * as dat from 'dat.gui';
-  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
   import { ModelClickHandler } from '@/utils/threeModelClickHandler';
   import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
+  import { useGui } from './shared/gui';
+  import { useThreeScene } from './shared/useThreeScene';
+  import { addBasicLights } from './shared/lights';
+
   const modelClickHandler = new ModelClickHandler();
   const router = useRouter();
+  const canvasRef = ref(null);
 
-  let canvas = null;
-  let gui = null;
-  let renderer = null;
-  let animationId = null;
   let scene = null;
   let camera = null;
+  let renderer = null;
   let controls = null;
   let classroomModel = null;
   let loader = null;
+  let renderFrame = null;
 
   // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
   const classroomAssetToken = beginAssetLoading();
   const deskAssetToken = beginAssetLoading();
-  
+
   /**
    * 调试
    */
-  // 初始�?dat.GUI
-  gui = new dat.GUI();
-  
-  //通过添加到对象的方式可以不用定义，适合一个对象中各个属性的添加，但变量名尽量简�?
+  // 初始化 dat.GUI
+  const gui = useGui(() => new dat.GUI());
+
+  //通过添加到对象的方式可以不用定义，适合一个对象中各个属性的添加，但变量名尽量简短
   const parameters = {};
   parameters.rotationSpeed = 0.0005;
-  
-  const initThree = () => {
-    // 使用画布尺寸组合函数
-    const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
-    
-    // 设置容器位置和尺寸
-    updateElementSize();
-  
+
+  const initThree = (ctx) => {
+    ({ scene, camera, renderer, controls } = ctx);
+
     /**
      * 场景环境设置
      */
-    //画布
-    canvas=document.querySelector('.webgl_7');
-    // 场景
-    scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0a1a);
-    
+
     /**
      * 相机
      */
-     camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 1000);
-     camera.position.set(0, 2, 5); // 设置相机位置
-     scene.add(camera);
-     
-    //相机控制
-    controls = new OrbitControls(camera, canvas);
-    controls.enableDamping = true;
-
-    // 渲染�?
-    renderer = new THREE.WebGLRenderer({ canvas });
-    renderer.setSize(elementSize.value.width, elementSize.value.height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    scene.add(camera);
 
     /**
      * 光照
      */
-    // 环境�?
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    
-    // 平行�?
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 10, 7.5);
-    scene.add(directionalLight);
+    addBasicLights(scene);
 
     const material = new THREE.MeshStandardMaterial({
       color: 0xe67e22,  // 温暖橙色
@@ -91,7 +66,6 @@ import { useElementSize } from '../utils/useElementSize';
       roughness: 0.7
     });
 
-    
     /**
      * 加载教室模型
      */
@@ -99,11 +73,11 @@ import { useElementSize } from '../utils/useElementSize';
     let classroomZLenght = 1;
     modelClickHandler.init(scene, camera, renderer.domElement);
     loader = new GLTFLoader();
-    
+
     // 加载模型 - 顺序加载实现
     const loadModelsSequentially = async () => {
       try {
-        // 加载第一个模型（教室�?
+        // 加载第一个模型（教室）
         await new Promise((resolve, reject) => {
           loader.load(
             'static/classroom/classroomMiniColor.gltf',
@@ -111,11 +85,11 @@ import { useElementSize } from '../utils/useElementSize';
               endAssetLoading(classroomAssetToken);
               classroomModel = gltf.scene;
               console.log(classroomModel);
-              // 调整模型大小和位�?
+              // 调整模型大小和位置
               classroomModel.position.set(0, 0, 0);
-              classroomModel.rotation.y = Math.PI / 2; // 根据需要调整旋�?
+              classroomModel.rotation.y = Math.PI / 2; // 根据需要调整旋转
 
-              // 计算并输出模型尺�?
+              // 计算并输出模型尺寸
               const box = new THREE.Box3().setFromObject(classroomModel);
               const size = new THREE.Vector3();
               box.getSize(size);
@@ -163,17 +137,15 @@ import { useElementSize } from '../utils/useElementSize';
               const instanceCount = 10; // 实例数量
               const instancedMesh = new THREE.InstancedMesh(geometry, material, instanceCount);
 
-              classroomZLenght-=1;
+              classroomZLenght -= 1;
 
-
-              
-              // 为每个实例设置不同的位置和旋�?
+              // 为每个实例设置不同的位置和旋转
               const matrix = new THREE.Matrix4();
               for (let i = 0; i < instanceCount; i++) {
                 // 计算位置
-                const x = 1.5*Math.floor(i/zCount);
+                const x = 1.5 * Math.floor(i / zCount);
                 const y = 0.25;
-                const z = 3 - classroomZLenght/zCount*(0.5 + i%zCount);
+                const z = 3 - classroomZLenght / zCount * (0.5 + i % zCount);
 
                 // 更新矩阵
                 matrix.compose(
@@ -181,13 +153,13 @@ import { useElementSize } from '../utils/useElementSize';
                   new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)),
                   new THREE.Vector3(1, 1, 1)
                 );
-                
-                // 应用到实�?
+
+                // 应用到实例
                 instancedMesh.setMatrixAt(i, matrix);
               }
               instancedMesh.instanceMatrix.needsUpdate = true;
 
-              // 添加到场�?
+              // 添加到场景
               scene.add(instancedMesh);
               resolve(true);
             },
@@ -206,81 +178,45 @@ import { useElementSize } from '../utils/useElementSize';
       }
     };
 
-    // 开始顺序加载模�?
+    // 开始顺序加载模型
     loadModelsSequentially();
-    
-    // 绑定响应式尺寸更新
-    bindRenderer(renderer, camera);
 
-  
     /**
-     * 帧更�?动画)
+     * 帧更新(动画)
      */
-    const clock = new THREE.Clock();
-    const tick = () => {
-      const elapsedTime = clock.getElapsedTime();
-      
-      
-      // 更新控制�?
+    renderFrame = () => {
+      // 更新控制器
       controls.update();
-      
+
       // 渲染
       renderer.render(scene, camera);
-    
-      // 继续调用 tick 函数
-      animationId = requestAnimationFrame(tick);
     };
-  
-    // 启动动画循环
-    tick();
   };
-  
-  onMounted(() => {
-    initThree();
+
+  const three = useThreeScene({
+    canvas: canvasRef,
+    camera: { fov: 75, near: 0.1, far: 1000, position: [0, 2, 5] },
+    controls: { enableDamping: true },
+    renderer: { pixelRatio: Math.min(window.devicePixelRatio, 2) },
+    onInit: (ctx) => initThree(ctx),
+    onFrame: () => renderFrame?.(),
   });
-  
+
   onBeforeUnmount(() => {
-    // 清理点击处理器资�?
+    // 清理点击处理器资源
     modelClickHandler.dispose();
-    
-    if (gui) {
-      gui.destroy();
-    }
-  
-    // 清理Three.js资源
-    if (animationId !== null) {
-      cancelAnimationFrame(animationId);
-      animationId = null;
-    }
-    if (renderer) {
-      renderer.dispose();
-      renderer.forceContextLoss();
-      renderer.domElement.remove();
-      renderer = null;
-    }
-    
-    // 清理场景中的对象
-    if (scene) {
-      scene.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material) => material.dispose());
-          } else {
-            object.material.dispose();
-          }
-        }
-      });
-    }
-    
-    // 清理加载�?
+
+    // 组合式统一释放场景、控制器与渲染器
+    three.dispose();
+
+    // 清理加载器
     if (loader) {
       if (loader.manager && typeof loader.manager.dispose === 'function') {
         loader.manager.dispose();
       }
     }
   });
-  </script>
+</script>
   
   <style scoped>
   /* Canvas样式 */

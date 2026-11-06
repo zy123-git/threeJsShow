@@ -1,6 +1,6 @@
 import type { Component } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
-import { Box, MagicStick, Star, Sunrise } from '@element-plus/icons-vue';
+import { Box, Document, MagicStick, Star, Sunrise } from '@element-plus/icons-vue';
 
 export interface SceneGroup {
   key: string;
@@ -32,6 +32,7 @@ export const SCENE_GROUPS: SceneGroup[] = [
   { key: 'particles', title: '粒子效果', micro: 'PARTICLES', icon: Star },
   { key: 'models', title: '3D 模型', micro: 'MODELS', icon: Box },
   { key: 'effects', title: '特效动画', micro: 'EFFECTS', icon: MagicStick },
+  { key: 'html', title: 'HTML', micro: 'HTML', icon: Document },
 ];
 
 // 场景总表：新增页面只需在这里加一条，路由 / 侧栏 / 首页卡片会自动同步。
@@ -183,6 +184,16 @@ export const SCENES: SceneEntry[] = [
     tags: ['骨骼', '动画'],
     component: () => import('../views/HTMLRigging.vue'),
     navOrder: 3,
+  },
+  {
+    path: '/html-landscape-therapy',
+    name: 'HTMLLandscapeTherapy',
+    title: '风堇治疗计算器',
+    group: 'html',
+    icon: '🏞️',
+    description: '风堇治疗计算器页面骨架',
+    tags: ['HTML', '计算器'],
+    component: () => import('../three/LandscapeTherapy.vue'),
   },
 ];
 

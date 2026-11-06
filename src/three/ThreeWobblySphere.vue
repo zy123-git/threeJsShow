@@ -5,81 +5,46 @@
 </template>
   
 <script setup>
-  import { onMounted, onBeforeUnmount, ref } from 'vue';
-  import { useElementSize } from '../utils/useElementSize';
+  import { onBeforeUnmount, ref } from 'vue';
 
   import * as THREE from 'three';
   import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
   import vertexShader from '@/shader/wobblySphereShader/vertexWithIncludes';
   import fragmentShader from '@/shader/wobblySphereShader/fragment.glsl?raw';
-  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
   import { RGBELoader } from 'three/examples/jsm/Addons.js';
   import CustomShaderMaterial from 'three-custom-shader-material/vanilla'
   import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
   import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
-
+  import { useGui } from './shared/gui';
+  import { useThreeScene } from './shared/useThreeScene';
 
   const canvasRef = ref(null);
-  let canvas = null;
-  let gui = null;
-  let renderer = null;
-  let animationId = null;
   let scene = null;
   let camera = null;
-  let controls = null;
+  let renderer = null;
+  let renderFrame = null;
 
   let environmentMap = null
   let rgbeLoader = null
 
   // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
   const assetToken = beginAssetLoading();
-  
 
-  
-  
-  const initThree = () => {
+  const gui = useGui(() => new GUI());
+
+  const initThree = (ctx) => {
+    ({ scene, camera, renderer } = ctx);
+
     /**
      * 场景环境设置
      */
-    //画布
-    canvas = canvasRef.value
-
-    // 使用画布尺寸组合函数
-    const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
-    updateElementSize();
-
-    /**
-     * 调试
-     */
-    // 初始�?dat.GUI
-    gui = new GUI()
-  
-
-    // 场景
-    scene = new THREE.Scene();
-    
-    /**
-     * 相机
-     */
-    camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 100);
-    camera.position.set(0, 0, 5); // �?z 轴正方向看向原点
     scene.add(camera);
-     
-    //相机控制
-    controls = new OrbitControls(camera, canvas)
-    controls.enableDamping = true
-    
-    // 渲染器
-    renderer = new THREE.WebGLRenderer({ canvas })
-    renderer.setSize(elementSize.value.width, elementSize.value.height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+    // 渲染器阴影配置
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    
-    // 绑定响应式尺寸更新
-    bindRenderer(renderer, camera);
-    // renderer.setClearColor(0x000000); // 设置背景颜色为黑�?
+
     //环境贴图
     rgbeLoader = new RGBELoader() 
     rgbeLoader.load('static/environment_map/0/cedar_bridge_sunset_1_4k.hdr',(environmentMap)=>
@@ -118,7 +83,8 @@
     directionalLight.shadow.camera.near = 0.5;
     directionalLight.shadow.camera.far = 500;
     
-    // 设置阴影贴图分辨�?    directionalLight.shadow.mapSize.width = 2048;
+    // 设置阴影贴图分辨率
+    // directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
     
     // 设置阴影贴图类型
@@ -296,62 +262,29 @@
         material.uniforms.uColorLow.value = value
       }) 
 
-
-
-  
     /**
-     * 帧更�?动画)
+     * 帧更新(动画)
      */
-    const clock = new THREE.Clock();
-    const tick = () => {
-      const elapsedTime = clock.getElapsedTime();
-
+    renderFrame = (elapsedTime) => {
       material.uniforms.uTime.value = elapsedTime
 
       // 渲染
       renderer.render(scene, camera);
-  
-      animationId = requestAnimationFrame(tick);
     };
-  
-    // 启动动画循环
-    tick();
   };
-    
-  
-  onMounted(() => {
-    initThree();
+
+  const three = useThreeScene({
+    canvas: canvasRef,
+    camera: { fov: 75, near: 0.1, far: 100, position: [0, 0, 5] },
+    controls: { enableDamping: true },
+    renderer: { pixelRatio: Math.min(window.devicePixelRatio, 2) },
+    onInit: (ctx) => initThree(ctx),
+    onFrame: (_ctx, frame) => renderFrame?.(frame.elapsed),
   });
-  
+
   onBeforeUnmount(() => {
-    if (gui) {
-      gui.destroy();
-    }
-  
-    // 清理Three.js资源（取消循环 + 回收 WebGL 上下文）
-    if (animationId !== null) {
-      cancelAnimationFrame(animationId);
-      animationId = null;
-    }
-    if (renderer) {
-      renderer.dispose();
-      renderer.forceContextLoss();
-      renderer.domElement.remove();
-      renderer = null;
-    }
-    // 清理场景中的对象
-    if (scene) {
-      scene.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material) => material.dispose());
-          } else {
-            object.material.dispose();
-          }
-        }
-      });
-    }
+    // 组合式统一释放场景、控制器与渲染器
+    three.dispose();
   });
-  </script>
+</script>
   

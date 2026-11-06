@@ -5,20 +5,16 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount } from 'vue';
-import { useElementSize } from '../utils/useElementSize';
+import { onBeforeUnmount } from 'vue';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
+import { useThreeScene } from './shared/useThreeScene';
 
-
-let canvas = null
-let scene=null
-let camera=null
-let renderer=null
-let animationId = null
-let controls=null
+let scene = null;
+let camera = null;
+let renderer = null;
+let renderFrame = null;
 
 // 存储需要动画的网格对象引用
 let ring1: THREE.Object3D | null = null;
@@ -32,36 +28,10 @@ let energyShield: THREE.Object3D | null = null;
 // 页面资源进度令牌：setup 阶段即登记，避免路由就绪后遮罩提前收尾
 const assetToken = beginAssetLoading();
 
-const initThree= ()=> {
+const initThree = (ctx) => {
+  ({ scene, camera, renderer } = ctx);
 
-  // 设置容器位置和尺寸
-  // updateSize();
-  /**
-   * 场景环境设置
-   */
-  //画布
-  canvas = document.querySelector('canvas.webgl_2');
-
-  // 使用画布尺寸组合函数
-  const { elementSize, updateElementSize, bindRenderer } = useElementSize('.three-container');
-  updateElementSize();
-
-  // 场景
-  scene = new THREE.Scene();
-
-   /**
-   * 相机
-   */
-   
-  //  camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 100);
-   camera = new THREE.PerspectiveCamera(75, elementSize.value.width / elementSize.value.height, 0.1, 100);
-   camera.position.set(1 ,1, -1);
-   scene.add(camera);
-   //相机控制
-   controls = new OrbitControls(camera, canvas);
-   controls.enableDamping = true;
-
-  // 相机
+  scene.add(camera);
 
   /**
    * 地面
@@ -173,19 +143,12 @@ const initThree= ()=> {
   pointLight.position.set(0, 1, 0);
   scene.add(pointLight);
 
-  // 渲染器
-  renderer = new THREE.WebGLRenderer({ canvas });
-  renderer.setSize(elementSize.value.width, elementSize.value.height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(0x000000); // 设置背景颜色为黑色
-
-  // 绑定响应式尺寸更新
-  bindRenderer(renderer, camera);
-
   let elapsedTime = 0;
-  const clock = new THREE.Clock();
-  const tick = () => {
-    const deltaTime = clock.getDelta();
+
+  /**
+   * 帧更新(动画)
+   */
+  renderFrame = (deltaTime) => {
     elapsedTime += deltaTime;
 
     // 为各个网格对象添加旋转动画
@@ -193,11 +156,7 @@ const initThree= ()=> {
 
     // 渲染
     renderer.render(scene, camera);
-
-    // 继续调用 tick 函数
-    animationId = requestAnimationFrame(tick);
   };
-  tick();
 }
 
 /**
@@ -272,37 +231,19 @@ const animateRings = (elapsedTime: number, deltaTime: number) => {
   }
 }
 
-onMounted(() => {
-  initThree();
+const three = useThreeScene({
+  canvas: 'canvas.webgl_2',
+  camera: { fov: 75, near: 0.1, far: 100, position: [1, 1, -1] },
+  controls: { enableDamping: true },
+  renderer: {
+    pixelRatio: Math.min(window.devicePixelRatio, 2),
+    clearColor: 0x000000
+  },
+  onInit: (ctx) => initThree(ctx),
+  onFrame: (_ctx, frame) => renderFrame?.(frame.delta),
 });
 
 onBeforeUnmount(() => {
-  // 清理Three.js资源
-  if (animationId !== null) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-  if (renderer) {
-    renderer.dispose();
-    renderer.forceContextLoss();
-    renderer.domElement.remove();
-    renderer = null;
-  }
-
-  // 清理场景中的对象
-  if (scene) {
-    scene.traverse((object) => {
-      if (object.geometry) object.geometry.dispose();
-      if (object.material) {
-        if (Array.isArray(object.material)) {
-          object.material.forEach((material) => material.dispose());
-        } else {
-          object.material.dispose();
-        }
-      }
-    });
-  }
-
   // 清空引用
   ring1 = null;
   ring2 = null;
@@ -311,6 +252,9 @@ onBeforeUnmount(() => {
   crossRing = null;
   coreRing = null;
   energyShield = null;
+
+  // 组合式统一释放场景、控制器与渲染器
+  three.dispose();
 });
 </script>
 

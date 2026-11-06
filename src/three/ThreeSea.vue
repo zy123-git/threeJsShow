@@ -12,11 +12,12 @@ import { useElementSize } from '../utils/useElementSize';
   import vertexShader from '@/shader/seaShader/vertex.glsl?raw';
   import fragmentShader from '@/shader/seaShader/fragment.glsl?raw';
   import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+  import { useGui } from './shared/gui';
+  import { disposeObject3D, disposeRenderer } from './shared/dispose';
 
   
   const canvasRef = ref(null);
   let canvas = null;
-  let gui = null;
   let renderer = null;
   let animationId = null;
   let scene = null;
@@ -57,7 +58,7 @@ function createNoiseTexture(size) {
     return texture;
 }
 
-  gui = new dat.GUI();
+  const gui = useGui(() => new dat.GUI());
   
   const initThree = () => {
     // 使用画布尺寸组合函数
@@ -176,33 +177,18 @@ function createNoiseTexture(size) {
   });
   
   onBeforeUnmount(() => {
-    if (gui) {
-      gui.destroy();
-    }
-  
     // 清理Three.js资源
     if (animationId !== null) {
       cancelAnimationFrame(animationId);
       animationId = null;
     }
     if (renderer) {
-      renderer.dispose();
-      renderer.forceContextLoss();
-      renderer.domElement.remove();
+      disposeRenderer(renderer);
       renderer = null;
     }
     // 清理场景中的对象
     if (scene) {
-      scene.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material) => material.dispose());
-          } else {
-            object.material.dispose();
-          }
-        }
-      });
+      disposeObject3D(scene);
     }
   });
   </script>

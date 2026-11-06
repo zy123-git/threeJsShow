@@ -9,12 +9,11 @@ import { onMounted, onBeforeUnmount } from 'vue';
 import { useElementSize } from '../utils/useElementSize';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { beginAssetLoading, endAssetLoading, reportAssetProgress } from '../utils/pageLoading';
@@ -34,6 +33,7 @@ let labelResizeObserver = null;
 let gui = null;
 // 供开关控制的引用
 let bloomPass = null;
+let outlinePass = null;
 let platformGroup = null;
 let originalFog = null;
 let labelObjects = [];
@@ -72,10 +72,14 @@ const params = {
   baseOpacity: 0.85,
   baseMetalness: 0.3,
   baseRoughness: 0.4,
-  // 描边简化
-  edgesSimplifyRatio: 0.7,   // SimplifyModifier 保留比例 (0.1~1.0, 1.0=不简化)
-  edgesThresholdAngle: 20,    // EdgesGeometry 角度阈值 (1~90 度)
-  edgesWeldRatio: 0.006,     // 融并点比例 (0~0.05, 0=不融并)，按 mesh 包围盒尺寸自适应
+  // 轮廓描边（屏幕空间法线 + 深度边缘检测）
+  edgeThickness: 1.2,     // 采样半径（像素），约等于线宽
+  edgeDepthDiff: 0.03,    // 相对深度差阈值
+  edgeNormalDiff: 0.28,   // 法线向量差阈值
+  edgeColor: '#4fc3f7',
+  edgeOpacity: 0.9,
+  edgeFresnelExponent: 2,
+  edgeFresnelInfluence: 0.5,
   // 模型变换
   modelScale: 1.0,
   modelOffsetY: 0,
@@ -161,78 +165,200 @@ const createParticleTexture = () => {
   return tex;
 };
 
-// ===== 描边简化（SimplifyModifier + EdgesGeometry thresholdAngle）=====
-const simplifyModifier = new SimplifyModifier();
+// ===== 屏幕空间轮廓描边（法线 + 深度边缘检测）=====
+// 原理：
+// 1) 每帧先把模型单独渲染成一张法线图并顺带拿到深度图：
+//    用 MeshNormalMaterial 作为 scene.overrideMaterial，相机临时只启用第 1 层，
+//    因此只有模型网格参与，平台/粒子/其它线不会污染这张图。
+// 2) 全屏 Shader 做 4 邻域比较：深度先线性化再求相对差，同时比较法线向量差，
+//    任一超过阈值即判定为轮廓像素。
+// 3) 把描边色按不透明度叠回 RenderPass 的画面。
+// 因为线是在屏幕空间按像素求出来的，不依赖三角面拓扑，所以不会出现碎线、
+// 内部乱线或描边与实体错位的问题，转动相机时轮廓也始终贴合。
 
-// 为单个 mesh 创建描边（应用融并点 + 减面 + 角度过滤）
-const createEdgesForMesh = (mesh) => {
-  try {
-    let geo = mesh.geometry;
-    // 克隆几何体，避免修改原始数据
-    geo = geo.clone();
-
-    // 1. 融并点：按 mesh 包围盒尺寸自适应阈值，消除倒角碎点
-    const weldRatio = params.edgesWeldRatio;
-    if (weldRatio > 0) {
-      const box = new THREE.Box3().setFromObject(mesh);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const threshold = maxDim * weldRatio;
-      if (threshold > 0) {
-        const welded = mergeVertices(geo, threshold);
-        geo.dispose();
-        geo = welded;
-      }
-    }
-
-    // 2. 减面：SimplifyModifier 移除顶点
-    const ratio = params.edgesSimplifyRatio;
-    if (ratio < 1.0 && geo.attributes.position && geo.attributes.position.count > 3) {
-      const vertexCount = geo.attributes.position.count;
-      const removeCount = Math.floor(vertexCount * (1 - ratio));
-      if (removeCount > 0) {
-        geo = simplifyModifier.modify(geo, removeCount);
-      }
-    }
-
-    // 3. 减线：EdgesGeometry 按角度阈值过滤
-    const edgesGeo = new THREE.EdgesGeometry(geo, params.edgesThresholdAngle);
-
-    geo.dispose();
-
-    return new THREE.LineSegments(
-      edgesGeo,
-      new THREE.LineBasicMaterial({
-        color: 0x4fc3f7,
-        transparent: true,
-        opacity: 0.8,
-      })
-    );
-  } catch (e) {
-    return null;
+const outlineVertexShader = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
-};
+`;
 
-// 重建所有 mesh 的描边（参数变化时调用）
-const rebuildAllEdges = () => {
-  if (!turbineGroup) return;
-  turbineGroup.traverse((child) => {
-    if (!child.isMesh) return;
-    // 移除旧描边
-    if (child.userData.edges) {
-      child.remove(child.userData.edges);
-      child.userData.edges.geometry.dispose();
-      child.userData.edges.material.dispose();
-      child.userData.edges = null;
+const outlineFragmentShader = /* glsl */ `
+  uniform sampler2D tDiffuse;
+  uniform sampler2D tNormal;
+  uniform sampler2D tDepth;
+  uniform vec2 uResolution;
+  uniform float uNear;
+  uniform float uFar;
+  uniform float uThickness;
+  uniform float uDepthDiff;
+  uniform float uNormalDiff;
+  uniform vec3 uEdgeColor;
+  uniform float uEdgeOpacity;
+  uniform float uEdgeFresnelExponent;
+  uniform float uEdgeFresnelInfluence;
+  varying vec2 vUv;
+
+  // 深度图存的是非线性 [0,1]，换算成到相机的线性距离
+  float linearDepth(vec2 uv) {
+    float d = texture2D(tDepth, uv).x;
+    float z = d * 2.0 - 1.0;
+    return (2.0 * uNear * uFar) / (uFar + uNear - z * (uFar - uNear));
+  }
+
+  void main() {
+    vec4 base = texture2D(tDiffuse, vUv);
+    vec2 texel = uThickness / uResolution;
+
+    float d0 = linearDepth(vUv);
+    vec3 n0 = normalize(texture2D(tNormal, vUv).xyz * 2.0 - 1.0);
+
+    vec2 offsets[4];
+    offsets[0] = vec2(texel.x, 0.0);
+    offsets[1] = vec2(-texel.x, 0.0);
+    offsets[2] = vec2(0.0, texel.y);
+    offsets[3] = vec2(0.0, -texel.y);
+
+    float maxDepthRel = 0.0;
+    float maxNormalDiff = 0.0;
+    // 中心与四邻域中最近表面的法线，避免描边像素落在背景上导致菲涅尔亮度断裂
+    float nearestDepth = d0;
+    vec3 nearestNormal = n0;
+
+    for (int i = 0; i < 4; i++) {
+      vec2 uv = vUv + offsets[i];
+      float di = linearDepth(uv);
+      vec3 ni = normalize(texture2D(tNormal, uv).xyz * 2.0 - 1.0);
+      maxDepthRel = max(maxDepthRel, abs(di - d0) / max(d0, 1e-3));
+      maxNormalDiff = max(maxNormalDiff, length(ni - n0));
+      if (di < nearestDepth) {
+        nearestDepth = di;
+        nearestNormal = ni;
+      }
     }
-    // 创建新描边
-    const edges = createEdgesForMesh(child);
-    if (edges) {
-      child.userData.edges = edges;
-      child.add(edges);
-    }
-  });
-};
+
+    float depthEdge = smoothstep(uDepthDiff, uDepthDiff * 1.8, maxDepthRel);
+    float normalEdge = smoothstep(uNormalDiff, uNormalDiff * 1.6, maxNormalDiff);
+    float edge = max(depthEdge, normalEdge);
+
+    // 线框菲涅尔：全屏阶段视线在视空间恒为 (0,0,1)，掠射面更亮、正视面更淡
+    float fresnel = pow(clamp(1.0 - abs(nearestNormal.z), 0.0, 1.0), uEdgeFresnelExponent);
+    float edgeAlpha = edge * uEdgeOpacity * mix(1.0, fresnel, uEdgeFresnelInfluence);
+
+    gl_FragColor = vec4(mix(base.rgb, uEdgeColor, edgeAlpha), base.a);
+  }
+`;
+
+class OutlineEdgePass extends Pass {
+  constructor(scene, camera, width, height) {
+    super();
+    this.scene = scene;
+    this.camera = camera;
+    this.needsSwap = true;
+
+    const depthTexture = new THREE.DepthTexture();
+    depthTexture.format = THREE.DepthStencilFormat;
+    depthTexture.type = THREE.UnsignedInt248Type;
+
+    this.normalRenderTarget = new THREE.WebGLRenderTarget(width, height, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      type: THREE.HalfFloatType,
+      depthTexture,
+    });
+
+    this.normalMaterial = new THREE.MeshNormalMaterial();
+    this.normalMaterial.blending = THREE.NoBlending;
+
+    this.material = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: null },
+        tNormal: { value: this.normalRenderTarget.texture },
+        tDepth: { value: this.normalRenderTarget.depthTexture },
+        uResolution: { value: new THREE.Vector2(width, height) },
+        uNear: { value: camera.near },
+        uFar: { value: camera.far },
+        uThickness: { value: params.edgeThickness },
+        uDepthDiff: { value: params.edgeDepthDiff },
+        uNormalDiff: { value: params.edgeNormalDiff },
+        uEdgeColor: { value: new THREE.Color(params.edgeColor) },
+        uEdgeOpacity: { value: params.edgeOpacity },
+        uEdgeFresnelExponent: { value: params.edgeFresnelExponent },
+        uEdgeFresnelInfluence: { value: params.edgeFresnelInfluence },
+      },
+      vertexShader: outlineVertexShader,
+      fragmentShader: outlineFragmentShader,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.NoBlending,
+    });
+
+    this.fsQuad = new FullScreenQuad(this.material);
+
+    this._clearColor = new THREE.Color();
+    this._outlineLayers = new THREE.Layers();
+    this._outlineLayers.set(1);
+  }
+
+  setSize(width, height) {
+    this.normalRenderTarget.setSize(width, height);
+    this.material.uniforms.uResolution.value.set(width, height);
+  }
+
+  // 线框模式会把实体材质的 visible 设为 false，法线通道需要模型照常参与，临时打开再还原
+  _forceMaterialVisible(visible) {
+    const changed = [];
+    this.scene.traverse((obj) => {
+      if (!obj.isMesh || !obj.layers.test(this._outlineLayers)) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((m) => {
+        if (m && m.visible === !visible) {
+          m.visible = visible;
+          changed.push(m);
+        }
+      });
+    });
+    return changed;
+  }
+
+  render(renderer, writeBuffer, readBuffer) {
+    // ① 法线 + 深度：相机临时只启用第 1 层（模型网格）
+    const savedLayerMask = this.camera.layers.mask;
+    this.camera.layers.set(1);
+
+    const savedAutoClear = renderer.autoClear;
+    renderer.getClearColor(this._clearColor);
+    const savedClearAlpha = renderer.getClearAlpha();
+
+    renderer.setRenderTarget(this.normalRenderTarget);
+    renderer.autoClear = false;
+    renderer.setClearColor(0x7777ff, 1.0);
+    renderer.clear();
+
+    const changedMats = this._forceMaterialVisible(true);
+    this.scene.overrideMaterial = this.normalMaterial;
+    renderer.render(this.scene, this.camera);
+    this.scene.overrideMaterial = null;
+    changedMats.forEach((m) => { m.visible = false; });
+
+    renderer.autoClear = savedAutoClear;
+    renderer.setClearColor(this._clearColor, savedClearAlpha);
+    this.camera.layers.mask = savedLayerMask;
+
+    // ② 把轮廓叠回画面
+    this.material.uniforms.tDiffuse.value = readBuffer.texture;
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+    this.fsQuad.render(renderer);
+  }
+
+  dispose() {
+    this.normalRenderTarget.dispose();
+    this.normalMaterial.dispose();
+    this.material.dispose();
+    this.fsQuad.dispose();
+  }
+}
 
 // ===== 加载全息 GLB 模型 =====
 // 对模型的每个 Mesh 应用 Fresnel 透明材质 + 蓝色发光边缘线
@@ -262,12 +388,8 @@ const applyHolographicMaterial = (model) => {
       // 默认使用 Fresnel 材质
       child.material = fresnelMat;
 
-      // 添加蓝色发光边缘线（支持简化）
-      const edges = createEdgesForMesh(child);
-      if (edges) {
-        child.userData.edges = edges;
-        child.add(edges);
-      }
+      // 轮廓描边单独用法线/深度通道，用第 1 层标记模型网格
+      child.layers.enable(1);
     }
   });
 };
@@ -433,16 +555,11 @@ const togglePlatform = (val) => {
 };
 
 const toggleEdges = (val) => {
-  if (!turbineGroup) return;
-  turbineGroup.traverse((child) => {
-    if (child.isMesh && child.userData.edges) {
-      child.userData.edges.visible = val;
-    }
-  });
+  if (outlinePass) outlinePass.enabled = val;
 };
 
-// 线框单独显示：隐藏实体材质，只保留描边线框
-// 注意：不能设置 mesh.visible=false，否则子对象 edges 也会被隐藏
+// 线框单独显示：隐藏实体材质，只保留屏幕空间轮廓
+// 注意：不能设置 mesh.visible=false，否则模型不会参与法线/深度通道，轮廓也会一起消失
 // 改用 material.visible=false 隐藏材质，mesh 对象本身保持可见
 const toggleWireframeOnly = (val) => {
   if (!turbineGroup) return;
@@ -462,10 +579,6 @@ const toggleWireframeOnly = (val) => {
           m.visible = !val;
         }
       });
-      // 线框模式下强制显示描边；关闭时按 params.edges 决定
-      if (child.userData.edges) {
-        child.userData.edges.visible = val ? true : params.edges;
-      }
     }
   });
 };
@@ -592,11 +705,6 @@ const updateDepthWrite = (val) => {
         }
       }
     }
-    // 描边线材质（通过 userData.edges 引用）
-    if (child.isMesh && child.userData.edges && child.userData.edges.material) {
-      child.userData.edges.material.depthWrite = val;
-      child.userData.edges.material.needsUpdate = true;
-    }
   });
 };
 
@@ -705,11 +813,29 @@ const setupGUI = () => {
   fMat.add(params, 'baseMetalness', 0, 1, 0.01).name('替代材质金属度').onChange(updateBaseMetalness);
   fMat.add(params, 'baseRoughness', 0, 1, 0.01).name('替代材质粗糙度').onChange(updateBaseRoughness);
 
-  // —— 描边简化 ——
-  const fEdge = gui.addFolder('描边简化');
-  fEdge.add(params, 'edgesSimplifyRatio', 0.1, 1.0, 0.05).name('减面保留比例').onChange(rebuildAllEdges);
-  fEdge.add(params, 'edgesThresholdAngle', 1, 90, 1).name('角度阈值').onChange(rebuildAllEdges);
-  fEdge.add(params, 'edgesWeldRatio', 0, 0.05, 0.001).name('融并比例').onChange(rebuildAllEdges);
+  // —— 轮廓描边 ——
+  const fEdge = gui.addFolder('轮廓描边');
+  fEdge.add(params, 'edgeThickness', 0.5, 4, 0.1).name('线宽(像素)').onChange((v) => {
+    if (outlinePass) outlinePass.material.uniforms.uThickness.value = v;
+  });
+  fEdge.add(params, 'edgeDepthDiff', 0.005, 0.2, 0.001).name('深度阈值').onChange((v) => {
+    if (outlinePass) outlinePass.material.uniforms.uDepthDiff.value = v;
+  });
+  fEdge.add(params, 'edgeNormalDiff', 0.05, 1, 0.01).name('法线阈值').onChange((v) => {
+    if (outlinePass) outlinePass.material.uniforms.uNormalDiff.value = v;
+  });
+  fEdge.add(params, 'edgeOpacity', 0, 1, 0.01).name('描边不透明度').onChange((v) => {
+    if (outlinePass) outlinePass.material.uniforms.uEdgeOpacity.value = v;
+  });
+  fEdge.add(params, 'edgeFresnelExponent', 0.5, 8, 0.1).name('线框菲涅尔指数').onChange((v) => {
+    if (outlinePass) outlinePass.material.uniforms.uEdgeFresnelExponent.value = v;
+  });
+  fEdge.add(params, 'edgeFresnelInfluence', 0, 1, 0.01).name('线框菲涅尔强度').onChange((v) => {
+    if (outlinePass) outlinePass.material.uniforms.uEdgeFresnelInfluence.value = v;
+  });
+  fEdge.addColor(params, 'edgeColor').name('描边颜色').onChange((v) => {
+    if (outlinePass) outlinePass.material.uniforms.uEdgeColor.value.set(v);
+  });
 
   // —— 模型变换 ——
   const fTrans = gui.addFolder('模型变换');
@@ -767,7 +893,7 @@ const init = () => {
   // 控制器
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  controls.minDistance = 6;
+  controls.minDistance = 1;
   controls.maxDistance = 22;
   controls.target.set(0, 0, 0);
 
@@ -781,9 +907,11 @@ const init = () => {
 
   bindRenderer(renderer, camera);
 
-  // ===== 后期处理：Bloom =====
+  // ===== 后期处理：RenderPass → 轮廓描边 → Bloom =====
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  outlinePass = new OutlineEdgePass(scene, camera, elementSize.value.width, elementSize.value.height);
+  composer.addPass(outlinePass);
   bloomPass = new UnrealBloomPass(
     new THREE.Vector2(elementSize.value.width, elementSize.value.height),
     params.bloomStrength,
@@ -926,6 +1054,11 @@ onBeforeUnmount(() => {
   dirLight = null;
   pointLight = null;
   baseScale = 1;
+
+  try {
+    if (outlinePass) outlinePass.dispose();
+  } catch (e) {}
+  outlinePass = null;
 
   try {
     if (composer) composer.dispose();
